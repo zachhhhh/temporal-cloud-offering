@@ -1,0 +1,103 @@
+# Temporal UI Configuration with OIDC Authentication
+# Uses built-in Temporal UI OIDC support
+#
+# Usage:
+# 1. Copy this file and update YOUR_DOMAIN
+# 2. Set environment variables: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+# 3. Mount as /etc/temporal/config/ui.yaml in the container
+#
+# Environment variables are substituted at runtime by Temporal UI
+
+temporalGrpcAddress: temporal-server:7233
+host: 0.0.0.0
+port: 8080
+enableUi: true
+defaultNamespace: default
+
+# Disable external notifications
+notifyOnNewVersion: false
+feedbackUrl: ""
+
+# CORS settings - update YOUR_DOMAIN
+cors:
+  allowOrigins:
+    - "https://temporal.YOUR_DOMAIN"
+    - "https://app.YOUR_DOMAIN"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  cookieInsecure: false
+# ============================================
+# OIDC Authentication Configuration
+# ============================================
+# Uncomment ONE of the following auth blocks
+
+# Option 1: Google OAuth (simplest)
+# auth:
+#   enabled: true
+#   providers:
+#     - label: "Sign in with Google"
+#       type: oidc
+#       providerUrl: "https://accounts.google.com"
+#       clientId: "${GOOGLE_CLIENT_ID}"
+#       clientSecret: "${GOOGLE_CLIENT_SECRET}"
+#       scopes:
+#         - openid
+#         - profile
+#         - email
+#       callbackUrl: "https://temporal.YOUR_DOMAIN/sso/callback"
+
+# Option 2: Auth0
+# auth:
+#   enabled: true
+#   providers:
+#     - label: "Sign in"
+#       type: oidc
+#       providerUrl: "https://YOUR_TENANT.auth0.com/"
+#       clientId: "${AUTH0_CLIENT_ID}"
+#       clientSecret: "${AUTH0_CLIENT_SECRET}"
+#       scopes:
+#         - openid
+#         - profile
+#         - email
+#       callbackUrl: "https://temporal.YOUR_DOMAIN/sso/callback"
+
+# Option 3: Keycloak
+# auth:
+#   enabled: true
+#   providers:
+#     - label: "Sign in with Keycloak"
+#       type: oidc
+#       providerUrl: "https://keycloak.YOUR_DOMAIN/realms/temporal"
+#       clientId: "${KEYCLOAK_CLIENT_ID}"
+#       clientSecret: "${KEYCLOAK_CLIENT_SECRET}"
+#       scopes:
+#         - openid
+#         - profile
+#         - email
+#       callbackUrl: "https://temporal.YOUR_DOMAIN/sso/callback"
+
+# Option 4: GitHub OAuth (via custom OIDC proxy)
+# Note: GitHub doesn't support OIDC natively, use Cloudflare Access instead
+# auth:
+#   enabled: true
+#   providers:
+#     - label: "Sign in with GitHub"
+#       type: oidc
+#       providerUrl: "https://YOUR_OIDC_PROXY"
+#       clientId: "${GITHUB_CLIENT_ID}"
+#       clientSecret: "${GITHUB_CLIENT_SECRET}"
+#       scopes:
+#         - openid
+#         - profile
+#         - email
+#       callbackUrl: "https://temporal.YOUR_DOMAIN/sso/callback"
+
+# ============================================
+# Recommended: Use Cloudflare Access
+# ============================================
+# Instead of configuring OIDC here, use Cloudflare Access
+# for Zero Trust authentication. This provides:
+# - Multiple identity providers (Google, GitHub, SAML, etc.)
+# - No code changes required
+# - WAF and DDoS protection included
+# - See: production/cloudflare-tunnel/OAUTH-SETUP.md

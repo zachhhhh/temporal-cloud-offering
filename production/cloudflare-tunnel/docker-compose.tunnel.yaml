@@ -1,0 +1,242 @@
+# Docker Compose with Cloudflare Tunnel
+# Run: docker-compose -f docker-compose.tunnel.yaml up -d
+
+version: "3.8"
+
+services:
+  # Cloudflare Tunnel (runs alongside your services)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: temporal-cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./config/cloudflared-config.yml:/etc/cloudflared/config.yml:ro
+      - ${HOME}/.cloudflared:/etc/cloudflared/creds:ro
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+    networks:
+      - temporal-cloud-network
+    depends_on:
+      - temporal-ui
+      - admin-portal
+      - billing-service
+
+  # PostgreSQL for Temporal + Billing
+  postgresql:
+    image: postgres:15-alpine
+    container_name: temporal-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-temporal}
+      POSTGRES_DB: temporal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../deploy/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - temporal-cloud-network
+
+  # Elasticsearch for visibility
+  elasticsearch:
+    image: elasticsearch:7.17.9
+    container_name: temporal-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - temporal-cloud-network
+
+  # Temporal Server
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: temporal-server
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-temporal}
+      - POSTGRES_SEEDS=postgresql
+      - ENABLE_ES=true
+      - ES_SEEDS=elasticsearch
+      - ES_VERSION=v7
+      - PROMETHEUS_ENDPOINT=0.0.0.0:9090
+    ports:
+      - "7233:7233"
+      - "7234:7234"
+      - "7235:7235"
+      - "7239:7239"
+    volumes:
+      - ../../deploy/dynamicconfig:/etc/temporal/config/dynamicconfig
+    networks:
+      - temporal-cloud-network
+
+  # Temporal UI with OAuth
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=https://${DOMAIN},https://app.${DOMAIN},https://temporal.${DOMAIN}
+      - TEMPORAL_NOTIFY_ON_NEW_VERSION=false
+      - TEMPORAL_FEEDBACK_URL=mailto:support@${DOMAIN}
+      # OAuth Configuration
+      - TEMPORAL_AUTH_ENABLED=${AUTH_ENABLED:-false}
+      - TEMPORAL_AUTH_PROVIDER_URL=${AUTH_PROVIDER_URL:-https://accounts.google.com}
+      - TEMPORAL_AUTH_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - TEMPORAL_AUTH_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - TEMPORAL_AUTH_CALLBACK_URL=https://temporal.${DOMAIN}/sso/callback
+    volumes:
+      - ../../deploy/temporal-ui-config-oidc.yaml:/etc/temporal/config/ui.yaml
+    ports:
+      - "8080:8080"
+    networks:
+      - temporal-cloud-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: temporal-prometheus
+    volumes:
+      - ../../deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      - "9090:9090"
+    networks:
+      - temporal-cloud-network
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: temporal-grafana
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://grafana.${DOMAIN}
+      # OAuth for Grafana (optional)
+      - GF_AUTH_GOOGLE_ENABLED=${AUTH_ENABLED:-false}
+      - GF_AUTH_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GF_AUTH_GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GF_AUTH_GOOGLE_ALLOWED_DOMAINS=${ALLOWED_DOMAINS:-}
+    volumes:
+      - ../../deploy/grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    networks:
+      - temporal-cloud-network
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: temporal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - temporal-cloud-network
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ../../billing-service
+      dockerfile: Dockerfile
+    container_name: temporal-billing
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://temporal:${POSTGRES_PASSWORD:-temporal}@postgresql:5432/billing?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - CORS_ORIGINS=https://app.${DOMAIN},https://${DOMAIN}
+    ports:
+      - "8082:8082"
+    networks:
+      - temporal-cloud-network
+
+  # Usage Collector
+  usage-collector:
+    build:
+      context: ../../usage-collector
+      dockerfile: Dockerfile
+    container_name: temporal-usage-collector
+    depends_on:
+      - prometheus
+      - postgresql
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - DATABASE_URL=postgres://temporal:${POSTGRES_PASSWORD:-temporal}@postgresql:5432/billing?sslmode=disable
+      - COLLECTION_INTERVAL=60s
+    ports:
+      - "8083:8083"
+    networks:
+      - temporal-cloud-network
+
+  # Admin Portal with OAuth
+  admin-portal:
+    build:
+      context: ../../admin-portal
+      dockerfile: Dockerfile
+    container_name: temporal-admin-portal
+    depends_on:
+      - billing-service
+    environment:
+      - BILLING_SERVICE_URL=http://billing-service:8082
+      - TEMPORAL_UI_URL=https://temporal.${DOMAIN}
+      - NEXTAUTH_URL=https://app.${DOMAIN}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-}
+      # OAuth providers
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID:-}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET:-}
+    ports:
+      - "3000:3000"
+    networks:
+      - temporal-cloud-network
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+  redis_data:
+
+networks:
+  temporal-cloud-network:
+    name: temporal-cloud-network

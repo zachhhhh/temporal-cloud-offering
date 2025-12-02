@@ -1,8 +1,42 @@
 # Temporal Cloud - Production Deployment
 
-Infrastructure as Code (IaC) deployment for Temporal Cloud on Oracle Cloud Infrastructure (OCI) Free Tier.
+Deploy Temporal Cloud Offering with real domains, SSL, and OAuth/SSO.
 
-## Architecture
+## Deployment Options
+
+| Option                                                    | Cost    | Best For                     |
+| --------------------------------------------------------- | ------- | ---------------------------- |
+| [**Cloudflare Tunnel**](./cloudflare-tunnel/)             | $0      | Local dev, demos, beta users |
+| [**Oracle Cloud Free Tier**](./free-tier/oracle-cloud.md) | $0      | Production (limited scale)   |
+| [**Hetzner Cloud**](./hetzner/)                           | ~$10/mo | Production (scalable)        |
+
+## Quick Start: Cloudflare Tunnel (Recommended)
+
+Expose your local services with a real domain in 5 minutes:
+
+```bash
+# 1. Start local services
+cd deploy && docker-compose up -d
+
+# 2. Setup tunnel
+cd production/cloudflare-tunnel
+./setup-tunnel.sh
+
+# 3. Run tunnel
+./run-tunnel.sh
+```
+
+Your services are now at:
+
+- **Admin Portal**: https://app.YOUR_DOMAIN
+- **Temporal UI**: https://temporal.YOUR_DOMAIN
+- **Grafana**: https://grafana.YOUR_DOMAIN
+
+See [cloudflare-tunnel/README.md](./cloudflare-tunnel/README.md) for OAuth/SSO setup.
+
+---
+
+## Oracle Cloud Architecture (Free Tier)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

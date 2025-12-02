@@ -2,6 +2,30 @@
 
 A monetizable Temporal-as-a-Service platform built on official Temporal components.
 
+## Quick Start (5 minutes)
+
+```bash
+# 1. Start services locally
+cd deploy && docker-compose up -d
+
+# 2. Expose with real domain + SSL (optional)
+cd ../production/cloudflare-tunnel
+./setup-tunnel.sh
+./run-tunnel.sh
+```
+
+**Local Access:**
+
+- Admin Portal: http://localhost:3000
+- Temporal UI: http://localhost:8080
+- Grafana: http://localhost:3001
+
+**With Cloudflare Tunnel:**
+
+- Admin Portal: https://app.YOUR_DOMAIN
+- Temporal UI: https://temporal.YOUR_DOMAIN
+- Grafana: https://grafana.YOUR_DOMAIN
+
 ## Architecture
 
 ```
@@ -9,16 +33,18 @@ A monetizable Temporal-as-a-Service platform built on official Temporal componen
 │                         Customer Access                              │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Temporal UI (temporalio/ui)  │  Admin Portal (billing/usage)       │
-│  http://localhost:8080        │  http://localhost:3000               │
+│  https://temporal.domain.com  │  https://app.domain.com             │
 └─────────────────────────────────────────────────────────────────────┘
-                                    │
+                                   │
+                          Cloudflare Tunnel (SSL + OAuth)
+                                   │
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Cloud Services                               │
 ├──────────────────┬──────────────────┬───────────────────────────────┤
 │  Billing Service │  Usage Collector │  Cloud API (cloud-sdk-go)     │
 │  (Stripe + DB)   │  (Prometheus)    │  Namespace provisioning       │
 └──────────────────┴──────────────────┴───────────────────────────────┘
-                                    │
+                                   │
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      Temporal Infrastructure                         │
 ├─────────────────────────────────────────────────────────────────────┤
@@ -26,6 +52,14 @@ A monetizable Temporal-as-a-Service platform built on official Temporal componen
 │  PostgreSQL │ Elasticsearch │ Prometheus │ Grafana                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+## Deployment Options
+
+| Option                                                   | Cost    | Setup Time | Best For               |
+| -------------------------------------------------------- | ------- | ---------- | ---------------------- |
+| [**Cloudflare Tunnel**](production/cloudflare-tunnel/)   | $0      | 5 min      | Demos, beta users, dev |
+| [**Oracle Cloud**](production/free-tier/oracle-cloud.md) | $0      | 30 min     | Production (free tier) |
+| [**Hetzner**](production/hetzner/)                       | ~$10/mo | 20 min     | Production (scalable)  |
 
 ## Components
 
@@ -37,20 +71,21 @@ A monetizable Temporal-as-a-Service platform built on official Temporal componen
 | **Usage Collector** | Custom (this repo)      | Prometheus metrics → billing  |
 | **Admin Portal**    | Custom (this repo)      | Customer billing dashboard    |
 
-## Quick Start
+## OAuth/SSO
+
+Enable authentication for your customers:
 
 ```bash
-cd deploy
-docker-compose up -d
+# See full guide
+cat production/cloudflare-tunnel/OAUTH-SETUP.md
 ```
 
-## Services
+Supported providers:
 
-- **Temporal UI**: http://localhost:8080
-- **Admin Portal**: http://localhost:3000
-- **Temporal gRPC**: localhost:7233
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3001
+- **Google OAuth** - Quick setup
+- **Cloudflare Access** - Zero Trust (recommended for production)
+- **Auth0** - Enterprise features
+- **GitHub OAuth** - Developer-friendly
 
 ## Pricing Model
 
