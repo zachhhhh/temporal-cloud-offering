@@ -1,0 +1,33 @@
+# For K3s with Traefik (default)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-cloud-ingress
+  namespace: temporal-cloud
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-portal
+                port:
+                  number: 3000
+          - path: /temporal
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal-ui
+                port:
+                  number: 8080
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: billing-service
+                port:
+                  number: 8082

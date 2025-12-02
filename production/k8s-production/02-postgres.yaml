@@ -1,0 +1,175 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: temporal-cloud
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: oci-bv
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: temporal-cloud
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: temporal
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "temporal"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "temporal"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init-scripts
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: temporal-cloud
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: temporal-cloud
+data:
+  init.sql: |
+    CREATE DATABASE billing;
+    CREATE DATABASE temporal_visibility;
+
+    \c billing;
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    CREATE TABLE organizations (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        stripe_customer_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE subscriptions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        plan VARCHAR(50) NOT NULL DEFAULT 'free',
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        stripe_subscription_id VARCHAR(255),
+        current_period_start TIMESTAMP,
+        current_period_end TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE namespaces (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        name VARCHAR(255) NOT NULL,
+        temporal_namespace VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'provisioning',
+        retention_days INTEGER DEFAULT 7,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE api_keys (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        key_prefix VARCHAR(20) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL,
+        scopes TEXT[],
+        expires_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE usage_records (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        namespace_id UUID REFERENCES namespaces(id),
+        period_start TIMESTAMP NOT NULL,
+        period_end TIMESTAMP NOT NULL,
+        total_actions BIGINT DEFAULT 0,
+        active_storage_gb_hours DECIMAL(20,6) DEFAULT 0,
+        retained_storage_gb_hours DECIMAL(20,6) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE invoices (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        stripe_invoice_id VARCHAR(255),
+        amount_cents INTEGER NOT NULL,
+        status VARCHAR(50) DEFAULT 'pending',
+        period_start TIMESTAMP,
+        period_end TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX idx_namespaces_org ON namespaces(organization_id);
+    CREATE INDEX idx_usage_org_period ON usage_records(organization_id, period_start, period_end);
+    CREATE INDEX idx_api_keys_org ON api_keys(organization_id);

@@ -1,0 +1,109 @@
+# Community Forum - Self-Hosted Options
+# Choose ONE of the following options
+
+version: '3.8'
+
+# ============================================
+# Option 1: Flarum (Lightweight, Modern)
+# Recommended for small-medium communities
+# ============================================
+services:
+  flarum:
+    image: crazymax/flarum:latest
+    container_name: community-forum
+    ports:
+      - "8088:8000"
+    environment:
+      - TZ=UTC
+      - PUID=1000
+      - PGID=1000
+      - FLARUM_BASE_URL=http://community.yourdomain.com
+      - FLARUM_FORUM_TITLE=Your Temporal Cloud Community
+      - FLARUM_API_PATH=api
+      - FLARUM_ADMIN_USER=admin
+      - FLARUM_ADMIN_PASSWORD=changeme123
+      - FLARUM_ADMIN_EMAIL=admin@yourdomain.com
+      - DB_HOST=flarum-db
+      - DB_NAME=flarum
+      - DB_USER=flarum
+      - DB_PASSWORD=flarum_secret
+    volumes:
+      - flarum_data:/data
+    depends_on:
+      - flarum-db
+    restart: unless-stopped
+
+  flarum-db:
+    image: mariadb:10.11
+    container_name: community-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_secret
+      - MYSQL_DATABASE=flarum
+      - MYSQL_USER=flarum
+      - MYSQL_PASSWORD=flarum_secret
+    volumes:
+      - flarum_db:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  flarum_data:
+  flarum_db:
+
+# ============================================
+# Option 2: Discourse (Full-Featured)
+# Recommended for large communities
+# Requires more resources (2GB+ RAM)
+# ============================================
+# Uncomment below and comment out Flarum above
+#
+# services:
+#   discourse:
+#     image: bitnami/discourse:latest
+#     container_name: discourse
+#     ports:
+#       - "8088:3000"
+#     environment:
+#       - DISCOURSE_HOST=community.yourdomain.com
+#       - DISCOURSE_SITENAME=Your Temporal Cloud Community
+#       - DISCOURSE_USERNAME=admin
+#       - DISCOURSE_PASSWORD=changeme123
+#       - DISCOURSE_EMAIL=admin@yourdomain.com
+#       - POSTGRESQL_HOST=discourse-db
+#       - POSTGRESQL_ROOT_USER=postgres
+#       - POSTGRESQL_ROOT_PASSWORD=postgres_secret
+#       - POSTGRESQL_CLIENT_CREATE_DATABASE_NAME=discourse
+#       - POSTGRESQL_CLIENT_CREATE_DATABASE_USERNAME=discourse
+#       - POSTGRESQL_CLIENT_CREATE_DATABASE_PASSWORD=discourse_secret
+#       - REDIS_HOST=discourse-redis
+#     volumes:
+#       - discourse_data:/bitnami/discourse
+#     depends_on:
+#       - discourse-db
+#       - discourse-redis
+#     restart: unless-stopped
+#
+#   discourse-db:
+#     image: bitnami/postgresql:15
+#     container_name: discourse-db
+#     environment:
+#       - POSTGRESQL_PASSWORD=postgres_secret
+#     volumes:
+#       - discourse_db:/bitnami/postgresql
+#     restart: unless-stopped
+#
+#   discourse-redis:
+#     image: bitnami/redis:latest
+#     container_name: discourse-redis
+#     environment:
+#       - ALLOW_EMPTY_PASSWORD=yes
+#     restart: unless-stopped
+#
+# volumes:
+#   discourse_data:
+#   discourse_db:
+
+# ============================================
+# Option 3: GitHub Discussions
+# Zero maintenance, free
+# Just enable on your GitHub repo
+# ============================================

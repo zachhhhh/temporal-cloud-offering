@@ -1,0 +1,86 @@
+# Ingress for OKE with OCI Load Balancer annotations
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-cloud-ingress
+  namespace: temporal-cloud
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Enable WebSocket for Temporal UI
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$remote_addr"
+spec:
+  rules:
+    - http:
+        paths:
+          # Admin Portal - root path
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-portal
+                port:
+                  number: 3000
+          # Temporal UI
+          - path: /temporal
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal-ui
+                port:
+                  number: 8080
+          # Billing API
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: billing-service
+                port:
+                  number: 8082
+---
+# gRPC Ingress for Temporal (separate for gRPC handling)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-grpc-ingress
+  namespace: temporal-cloud
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  rules:
+    - host: grpc.temporal.local # Update with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal
+                port:
+                  number: 7233
+---
+# OCI Load Balancer Service (alternative to ingress)
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-lb
+  namespace: temporal-cloud
+  annotations:
+    oci.oraclecloud.com/load-balancer-type: "lb"
+    service.beta.kubernetes.io/oci-load-balancer-shape: "flexible"
+    service.beta.kubernetes.io/oci-load-balancer-shape-flex-min: "10"
+    service.beta.kubernetes.io/oci-load-balancer-shape-flex-max: "10"
+spec:
+  type: LoadBalancer
+  selector:
+    app: admin-portal
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000

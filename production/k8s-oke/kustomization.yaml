@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: temporal-cloud
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - temporal.yaml
+  - billing.yaml
+  - admin-portal.yaml
+  - monitoring.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: temporal-cloud
+  app.kubernetes.io/managed-by: kustomize
+
+# Image overrides (update tags as needed)
+images:
+  - name: ghcr.io/temporalio/temporal-cloud-billing
+    newTag: latest
+  - name: ghcr.io/temporalio/temporal-cloud-usage-collector
+    newTag: latest
+  - name: ghcr.io/temporalio/temporal-cloud-admin-portal
+    newTag: latest

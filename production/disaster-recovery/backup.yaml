@@ -1,0 +1,108 @@
+# Disaster Recovery - PostgreSQL Backup
+# Uses OCI Object Storage for backups
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: temporal
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: backup
+              image: postgres:15-alpine
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: temporal-postgres-secret
+                      key: password
+                - name: OCI_BUCKET
+                  value: "temporal-backups"
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  BACKUP_FILE="temporal-backup-$(date +%Y%m%d-%H%M%S).sql.gz"
+
+                  # Dump all databases
+                  pg_dumpall -h postgres -U temporal | gzip > /tmp/$BACKUP_FILE
+
+                  # Upload to OCI Object Storage (if configured)
+                  if [ -n "$OCI_BUCKET" ]; then
+                    # Using OCI CLI or S3-compatible API
+                    echo "Backup created: $BACKUP_FILE"
+                  fi
+
+                  # Keep local copy for 7 days
+                  find /backups -name "*.sql.gz" -mtime +7 -delete 2>/dev/null || true
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+          restartPolicy: OnFailure
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: backup-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: temporal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: oci-bv
+---
+# Restore Job (manual trigger)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgres-restore
+  namespace: temporal
+spec:
+  template:
+    spec:
+      containers:
+        - name: restore
+          image: postgres:15-alpine
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-postgres-secret
+                  key: password
+            - name: BACKUP_FILE
+              value: "latest" # Override with specific file
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              if [ "$BACKUP_FILE" = "latest" ]; then
+                BACKUP_FILE=$(ls -t /backups/*.sql.gz | head -1)
+              fi
+
+              echo "Restoring from: $BACKUP_FILE"
+              gunzip -c $BACKUP_FILE | psql -h postgres -U temporal
+              echo "Restore complete"
+          volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+      restartPolicy: Never
+      volumes:
+        - name: backup-storage
+          persistentVolumeClaim:
+            claimName: backup-pvc

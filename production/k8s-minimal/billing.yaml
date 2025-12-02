@@ -1,0 +1,171 @@
+# Billing Service Secrets
+apiVersion: v1
+kind: Secret
+metadata:
+  name: billing-secrets
+  namespace: temporal-cloud
+type: Opaque
+stringData:
+  STRIPE_SECRET_KEY: "${STRIPE_SECRET_KEY}"
+  STRIPE_WEBHOOK_SECRET: "${STRIPE_WEBHOOK_SECRET}"
+---
+# Billing Service ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: billing-config
+  namespace: temporal-cloud
+data:
+  DATABASE_URL: "postgres://temporal:temporal123@postgres.temporal-cloud.svc.cluster.local:5432/billing?sslmode=disable"
+  REDIS_URL: "redis://redis.temporal-cloud.svc.cluster.local:6379"
+  ENABLE_AUTH: "false"
+  PORT: "8082"
+---
+# Billing Service Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: billing-service
+  namespace: temporal-cloud
+  labels:
+    app: billing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: billing-service
+  template:
+    metadata:
+      labels:
+        app: billing-service
+    spec:
+      containers:
+        - name: billing
+          image: ghcr.io/temporalio/temporal-cloud-billing:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8082
+              name: http
+          envFrom:
+            - configMapRef:
+                name: billing-config
+            - secretRef:
+                name: billing-secrets
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+# Billing Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: billing-service
+  namespace: temporal-cloud
+spec:
+  type: ClusterIP
+  selector:
+    app: billing-service
+  ports:
+    - port: 8082
+      targetPort: 8082
+      name: http
+---
+# Usage Collector Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: usage-collector
+  namespace: temporal-cloud
+  labels:
+    app: usage-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: usage-collector
+  template:
+    metadata:
+      labels:
+        app: usage-collector
+    spec:
+      containers:
+        - name: collector
+          image: ghcr.io/temporalio/temporal-cloud-usage-collector:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8083
+              name: http
+          env:
+            - name: PROMETHEUS_URL
+              value: "http://prometheus.temporal-cloud.svc.cluster.local:9090"
+            - name: DATABASE_URL
+              value: "postgres://temporal:temporal123@postgres.temporal-cloud.svc.cluster.local:5432/billing?sslmode=disable"
+            - name: COLLECTION_INTERVAL
+              value: "60s"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 30
+---
+# Usage Collector Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: usage-collector
+  namespace: temporal-cloud
+spec:
+  type: ClusterIP
+  selector:
+    app: usage-collector
+  ports:
+    - port: 8083
+      targetPort: 8083
+      name: http
+---
+# Monthly Billing CronJob
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: monthly-billing
+  namespace: temporal-cloud
+spec:
+  schedule: "0 0 1 * *" # First day of each month at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: billing-job
+              image: ghcr.io/temporalio/temporal-cloud-billing:latest
+              command: ["/billing-service", "--run-billing"]
+              envFrom:
+                - configMapRef:
+                    name: billing-config
+                - secretRef:
+                    name: billing-secrets
+          restartPolicy: OnFailure

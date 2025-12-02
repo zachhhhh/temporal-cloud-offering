@@ -1,0 +1,88 @@
+{{- if .Values.temporalUI.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-temporal-ui
+  labels:
+    app: temporal-ui
+    release: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.temporalUI.replicas }}
+  selector:
+    matchLabels:
+      app: temporal-ui
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: temporal-ui
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: temporal-ui
+          image: "{{ .Values.temporalUI.image.repository }}:{{ .Values.temporalUI.image.tag }}"
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: {{ .Release.Name }}-temporal:7233
+          resources:
+            {{- toYaml .Values.temporalUI.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-temporal-ui
+  labels:
+    app: temporal-ui
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: temporal-ui
+    release: {{ .Release.Name }}
+---
+{{- if .Values.temporalUI.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-temporal-ui
+  labels:
+    app: temporal-ui
+    release: {{ .Release.Name }}
+  {{- with .Values.temporalUI.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.temporalUI.ingress.className }}
+  {{- if .Values.temporalUI.ingress.tls }}
+  tls:
+    {{- range .Values.temporalUI.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      secretName: {{ .secretName }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.temporalUI.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $.Release.Name }}-temporal-ui
+                port:
+                  number: 8080
+          {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

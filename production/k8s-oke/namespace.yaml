@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: temporal-cloud
+  labels:
+    app.kubernetes.io/name: temporal-cloud
+    app.kubernetes.io/managed-by: terraform

@@ -1,0 +1,90 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "billing-service/**"
+      - "usage-collector/**"
+      - "admin-portal/**"
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: temporalio/temporal-cloud
+
+jobs:
+  build-billing-service:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push billing-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./billing-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-billing:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-billing:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+
+  build-usage-collector:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push usage-collector
+        uses: docker/build-push-action@v5
+        with:
+          context: ./usage-collector
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-usage-collector:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-usage-collector:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+
+  build-admin-portal:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push admin-portal
+        uses: docker/build-push-action@v5
+        with:
+          context: ./admin-portal
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-admin-portal:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-admin-portal:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64

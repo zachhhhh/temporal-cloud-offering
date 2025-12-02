@@ -1,0 +1,175 @@
+# Production Docker Compose
+# Run with: docker-compose -f docker-compose.prod.yaml up -d
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: temporal-postgres-prod
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-temporal_secret_prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../deploy/init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: temporal-redis-prod
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: always
+
+  # Temporal Server
+  temporal-server:
+    image: temporalio/auto-setup:latest
+    container_name: temporal-server-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-temporal_secret_prod}
+      - POSTGRES_SEEDS=postgres
+      - DYNAMIC_CONFIG_FILE_PATH=/etc/temporal/config/dynamicconfig.yaml
+      - ENABLE_ES=false
+    volumes:
+      - ../deploy/dynamicconfig.yaml:/etc/temporal/config/dynamicconfig.yaml
+    ports:
+      - "7233:7233"
+      - "7234:7234"
+      - "7235:7235"
+    restart: always
+
+  # Temporal UI
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui-prod
+    depends_on:
+      - temporal-server
+    environment:
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - TEMPORAL_CORS_ORIGINS=*
+      - TEMPORAL_NOTIFY_ON_NEW_VERSION=false
+      - TEMPORAL_FEEDBACK_URL=
+      - TEMPORAL_UI_PORT=8080
+    ports:
+      - "8080:8080"
+    restart: always
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ../billing-service
+      dockerfile: Dockerfile
+    container_name: temporal-billing-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal-server:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://temporal:${POSTGRES_PASSWORD:-temporal_secret_prod}@postgres:5432/billing?sslmode=disable
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-sk_test_placeholder}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}
+      - PORT=8082
+    ports:
+      - "8082:8082"
+    restart: always
+
+  # Admin Portal
+  admin-portal:
+    build:
+      context: ../admin-portal
+      dockerfile: Dockerfile
+    container_name: temporal-admin-prod
+    depends_on:
+      - billing-service
+    environment:
+      - NEXT_PUBLIC_BILLING_API_URL=http://billing-service:8082
+      - NEXT_PUBLIC_TEMPORAL_UI_URL=http://temporal-ui:8080
+    ports:
+      - "3000:3000"
+    restart: always
+
+  # Usage Collector
+  usage-collector:
+    build:
+      context: ../usage-collector
+      dockerfile: Dockerfile
+    container_name: temporal-usage-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      temporal-server:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://temporal:${POSTGRES_PASSWORD:-temporal_secret_prod}@postgres:5432/billing?sslmode=disable
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - PROMETHEUS_URL=http://prometheus:9090
+    ports:
+      - "8083:8083"
+    restart: always
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: temporal-prometheus-prod
+    volumes:
+      - ../deploy/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    restart: always
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: temporal-grafana-prod
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    restart: always
+
+  # Nginx Reverse Proxy (for production with SSL)
+  nginx:
+    image: nginx:alpine
+    container_name: temporal-nginx-prod
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - admin-portal
+      - billing-service
+      - temporal-ui
+    restart: always
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:

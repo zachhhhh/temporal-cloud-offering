@@ -1,0 +1,42 @@
+# Environment files with secrets
+.env
+*.env.local
+
+# Dependencies
+node_modules/
+vendor/
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+.next/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# Secrets
+*.pem
+*.key
+terraform.tfvars
+
+# Backups
+backups/

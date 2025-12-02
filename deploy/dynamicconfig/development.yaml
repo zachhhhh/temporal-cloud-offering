@@ -1,0 +1,9 @@
+# Temporal Dynamic Config for Cloud Offering
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+frontend.enableClientVersionCheck:
+  - value: true
+history.MaximumSignalsPerExecution:
+  - value: 10000
+limit.maxIDLength:
+  - value: 255

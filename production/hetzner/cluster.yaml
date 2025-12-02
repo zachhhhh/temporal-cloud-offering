@@ -1,0 +1,83 @@
+# Hetzner K3s Cluster Configuration
+# Install: brew install vitobotta/tap/hetzner_k3s
+# Create: hetzner-k3s create --config cluster.yaml
+# Delete: hetzner-k3s delete --config cluster.yaml
+
+hetzner_token: <YOUR_HETZNER_API_TOKEN>
+
+cluster_name: temporal-cloud
+kubeconfig_path: ./kubeconfig
+
+networking:
+  ssh:
+    port: 22
+    use_agent: false
+    public_key_path: ~/.ssh/id_rsa.pub
+    private_key_path: ~/.ssh/id_rsa
+  allowed_networks:
+    ssh:
+      - 0.0.0.0/0
+    api:
+      - 0.0.0.0/0
+  public_network:
+    ipv4: true
+    ipv6: true
+  private_network:
+    enabled: true
+    subnet: 10.0.0.0/16
+    existing_network_name: ""
+  cni:
+    enabled: true
+
+# Datacenters: fsn1 (Falkenstein), nbg1 (Nuremberg), hel1 (Helsinki), ash (Ashburn), hil (Hillsboro), sin (Singapore)
+datacenters:
+  - fsn1
+
+# Control plane nodes (masters)
+masters_pool:
+  instance_type: cpx21 # 3 vCPU, 4GB RAM - €8.98/mo
+  instance_count: 3
+  location: fsn1
+
+# Worker node pools
+worker_node_pools:
+  - name: general
+    instance_type: cpx31 # 4 vCPU, 8GB RAM - €14.76/mo
+    instance_count: 2
+    location: fsn1
+    autoscaling:
+      enabled: true
+      min_instances: 2
+      max_instances: 5
+
+  - name: temporal
+    instance_type: cpx41 # 8 vCPU, 16GB RAM - €28.76/mo
+    instance_count: 2
+    location: fsn1
+    labels:
+      workload: temporal
+    taints:
+      - key: workload
+        value: temporal
+        effect: NoSchedule
+
+# Addons
+addons:
+  csi_driver:
+    enabled: true
+  ccm:
+    enabled: true
+  cluster_autoscaler:
+    enabled: true
+  system_upgrade_controller:
+    enabled: true
+  traefik:
+    enabled: false # We'll use ingress-nginx
+  servicelb:
+    enabled: false
+  metrics_server:
+    enabled: true
+
+# Post-install manifests
+post_create_commands:
+  - kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/cloud/deploy.yaml

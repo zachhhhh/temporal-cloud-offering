@@ -1,0 +1,135 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Run billing-service tests
+        working-directory: ./billing-service
+        run: |
+          go test -v -race -coverprofile=coverage.out ./...
+          go tool cover -func=coverage.out
+
+      - name: Run usage-collector tests
+        working-directory: ./usage-collector
+        run: go build -v ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./billing-service/coverage.out
+          fail_ci_if_error: false
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: temporal
+          POSTGRES_PASSWORD: temporal123
+          POSTGRES_DB: billing_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Initialize database
+        run: |
+          PGPASSWORD=temporal123 psql -h localhost -U temporal -d billing_test -f deploy/init-db.sql
+
+      - name: Run integration tests
+        working-directory: ./billing-service
+        env:
+          TEST_DATABASE_URL: postgres://temporal:temporal123@localhost:5432/billing_test?sslmode=disable
+        run: go test -v ./...
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Start services
+        run: |
+          cd deploy
+          docker-compose up -d postgres
+          sleep 5
+          docker-compose up -d billing-service
+          sleep 10
+
+      - name: Wait for services
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8082/health > /dev/null; then
+              echo "Billing service is ready"
+              break
+            fi
+            echo "Waiting for billing service..."
+            sleep 2
+          done
+
+      - name: Run E2E tests
+        working-directory: ./tests/e2e
+        env:
+          BILLING_API: http://localhost:8082
+          TEST_ORG_ID: demo-org
+        run: go test -v -tags=e2e ./...
+
+      - name: Collect logs on failure
+        if: failure()
+        run: |
+          cd deploy
+          docker-compose logs billing-service
+          docker-compose logs postgres
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: golangci-lint billing-service
+        uses: golangci/golangci-lint-action@v4
+        with:
+          working-directory: ./billing-service
+          args: --timeout=5m
+
+      - name: golangci-lint usage-collector
+        uses: golangci/golangci-lint-action@v4
+        with:
+          working-directory: ./usage-collector
+          args: --timeout=5m

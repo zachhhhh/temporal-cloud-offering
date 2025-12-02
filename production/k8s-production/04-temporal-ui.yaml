@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-ui
+  namespace: temporal-system
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: temporal-ui
+  template:
+    metadata:
+      labels:
+        app: temporal-ui
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: app
+                      operator: In
+                      values:
+                        - temporal-ui
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: temporal-ui
+          image: temporalio/ui:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: temporal-server:7233
+            - name: TEMPORAL_CORS_ORIGINS
+              value: "*"
+            - name: TEMPORAL_UI_PORT
+              value: "8080"
+            - name: TEMPORAL_NOTIFY_ON_NEW_VERSION
+              value: "false"
+            - name: TEMPORAL_SHOW_TEMPORAL_SYSTEM_NAMESPACE
+              value: "false"
+            - name: TEMPORAL_FEEDBACK_URL
+              value: ""
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-ui
+  namespace: temporal-system
+spec:
+  selector:
+    app: temporal-ui
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: temporal-ui-pdb
+  namespace: temporal-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: temporal-ui

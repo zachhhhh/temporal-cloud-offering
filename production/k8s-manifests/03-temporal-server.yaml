@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-server
+  namespace: temporal-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: temporal-server
+  template:
+    metadata:
+      labels:
+        app: temporal-server
+    spec:
+      containers:
+        - name: temporal
+          image: temporalio/auto-setup:latest
+          ports:
+            - containerPort: 7233
+              name: grpc
+            - containerPort: 7234
+              name: grpc-web
+            - containerPort: 7235
+              name: membership
+          env:
+            - name: DB
+              value: postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: POSTGRES_HOST
+              value: postgres.temporal-cloud.svc.cluster.local
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_SEEDS
+              value: postgres.temporal-cloud.svc.cluster.local
+            - name: DYNAMIC_CONFIG_FILE_PATH
+              value: /etc/temporal/config/dynamicconfig.yaml
+            - name: ENABLE_ES
+              value: "false"
+            - name: PROMETHEUS_ENDPOINT
+              value: "0.0.0.0:9090"
+          volumeMounts:
+            - name: dynamic-config
+              mountPath: /etc/temporal/config
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          livenessProbe:
+            tcpSocket:
+              port: 7233
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 7233
+            initialDelaySeconds: 30
+            periodSeconds: 5
+      volumes:
+        - name: dynamic-config
+          configMap:
+            name: temporal-dynamic-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-server
+  namespace: temporal-system
+spec:
+  selector:
+    app: temporal-server
+  ports:
+    - name: grpc
+      port: 7233
+      targetPort: 7233
+    - name: grpc-web
+      port: 7234
+      targetPort: 7234
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: temporal-dynamic-config
+  namespace: temporal-system
+data:
+  dynamicconfig.yaml: |
+    # Dynamic configuration for Temporal
+    system.forceSearchAttributesCacheRefreshOnRead:
+      - value: true
+    frontend.enableClientVersionCheck:
+      - value: false
+    history.defaultActivityRetryPolicy:
+      - value:
+          InitialIntervalInSeconds: 1
+          MaximumIntervalCoefficient: 100.0
+          BackoffCoefficient: 2.0
+          MaximumAttempts: 0

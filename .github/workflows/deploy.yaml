@@ -1,0 +1,176 @@
+# CI/CD Pipeline for Temporal Cloud
+# One-click deployment to OKE
+
+name: Deploy Temporal Cloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Deployment environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  OCI_CLI_USER: ${{ secrets.OCI_USER_OCID }}
+  OCI_CLI_TENANCY: ${{ secrets.OCI_TENANCY_OCID }}
+  OCI_CLI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+  OCI_CLI_KEY_CONTENT: ${{ secrets.OCI_PRIVATE_KEY }}
+  OCI_CLI_REGION: ap-singapore-1
+  CLUSTER_ID: ${{ secrets.OKE_CLUSTER_ID }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Run unit tests
+        run: |
+          cd billing-service
+          go test -v ./...
+
+      - name: Run E2E tests (local)
+        run: |
+          docker-compose -f deploy/docker-compose.yaml up -d
+          sleep 30
+          ./tests/e2e/full_flow_test.sh
+          docker-compose -f deploy/docker-compose.yaml down
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push billing-service
+        uses: docker/build-push-action@v5
+        with:
+          context: ./billing-service
+          push: true
+          tags: ghcr.io/${{ github.repository }}/billing-service:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push admin-portal
+        uses: docker/build-push-action@v5
+        with:
+          context: ./admin-portal
+          push: true
+          tags: ghcr.io/${{ github.repository }}/admin-portal:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OCI CLI
+        run: |
+          curl -L https://raw.githubusercontent.com/oracle/oci-cli/master/scripts/install/install.sh | bash -s -- --accept-all-defaults
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Configure OCI CLI
+        run: |
+          mkdir -p ~/.oci
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/oci_api_key.pem
+          chmod 600 ~/.oci/oci_api_key.pem
+          cat > ~/.oci/config << EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=ap-singapore-1
+          key_file=~/.oci/oci_api_key.pem
+          EOF
+
+      - name: Get OKE kubeconfig
+        run: |
+          oci ce cluster create-kubeconfig \
+            --cluster-id ${{ secrets.OKE_CLUSTER_ID }} \
+            --file ~/.kube/config \
+            --region ap-singapore-1 \
+            --token-version 2.0.0 \
+            --kube-endpoint PUBLIC_ENDPOINT
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: "v3.13.0"
+
+      - name: Deploy PostgreSQL
+        run: |
+          kubectl apply -f production/oke-minimal/postgres-minimal.yaml
+          kubectl wait --for=condition=ready pod -l app=postgres -n temporal --timeout=300s
+
+      - name: Deploy Temporal (using official Helm chart)
+        run: |
+          helm repo add temporal https://go.temporal.io/helm-charts
+          helm repo update
+          helm upgrade --install temporal temporal/temporal \
+            --namespace temporal \
+            --create-namespace \
+            -f production/oke-minimal/values-minimal.yaml \
+            --wait --timeout 10m
+
+      - name: Deploy Autoscaling
+        run: |
+          kubectl apply -f production/oke-minimal/autoscaling.yaml
+
+      - name: Deploy billing-service
+        run: |
+          kubectl set image deployment/billing-service \
+            billing=ghcr.io/${{ github.repository }}/billing-service:${{ github.sha }} \
+            -n temporal || \
+          kubectl apply -f production/k8s-production/05-billing-service.yaml
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n temporal
+          kubectl get svc -n temporal
+
+  budget-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check OCI budget
+        run: |
+          # Check current spending
+          SPENT=$(oci budgets budget get --budget-id ${{ secrets.BUDGET_ID }} --query 'data."actual-spend"' --raw-output)
+          BUDGET=300
+
+          if (( $(echo "$SPENT > $BUDGET * 0.95" | bc -l) )); then
+            echo "CRITICAL: Budget exceeded 95%. Scaling down..."
+            # Scale down to minimum
+            kubectl scale deployment --all --replicas=1 -n temporal
+          fi

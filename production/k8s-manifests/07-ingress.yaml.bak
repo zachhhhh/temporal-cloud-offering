@@ -1,0 +1,90 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-cloud-ingress
+  namespace: temporal-cloud
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - app.yourdomain.com
+        - api.yourdomain.com
+        - temporal.yourdomain.com
+      secretName: temporal-cloud-tls
+  rules:
+    - host: app.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: admin-portal
+                port:
+                  number: 3000
+    - host: api.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: billing-service
+                port:
+                  number: 8082
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-ui-ingress
+  namespace: temporal-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web,websecure
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - temporal.yourdomain.com
+      secretName: temporal-ui-tls
+  rules:
+    - host: temporal.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal-ui
+                port:
+                  number: 8080
+---
+# gRPC Ingress for Temporal Server
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: temporal-grpc-ingress
+  namespace: temporal-system
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/service.serversscheme: h2c
+spec:
+  tls:
+    - hosts:
+        - grpc.yourdomain.com
+      secretName: temporal-grpc-tls
+  rules:
+    - host: grpc.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: temporal-server
+                port:
+                  number: 7233

@@ -1,0 +1,56 @@
+# Minimal Hetzner K3s - Single Node (~€4.50/mo)
+# Good for: Demo, development, first customers
+# Install: brew install vitobotta/tap/hetzner_k3s
+# Create: hetzner-k3s create --config cluster-minimal.yaml
+
+hetzner_token: <YOUR_HETZNER_API_TOKEN>
+
+cluster_name: temporal-cloud-minimal
+kubeconfig_path: ./kubeconfig
+
+networking:
+  ssh:
+    port: 22
+    use_agent: false
+    public_key_path: ~/.ssh/id_rsa.pub
+    private_key_path: ~/.ssh/id_rsa
+  allowed_networks:
+    ssh:
+      - 0.0.0.0/0
+    api:
+      - 0.0.0.0/0
+  public_network:
+    ipv4: true
+    ipv6: true
+  private_network:
+    enabled: false # Save money, single node doesn't need it
+  cni:
+    enabled: true
+
+datacenters:
+  - fsn1
+
+# Single node acts as both master and worker
+masters_pool:
+  instance_type: cx22 # 2 vCPU, 4GB RAM - €4.35/mo (cheapest with enough RAM)
+  instance_count: 1
+  location: fsn1
+
+# No separate workers - master runs everything
+worker_node_pools: []
+
+addons:
+  csi_driver:
+    enabled: true
+  ccm:
+    enabled: true
+  cluster_autoscaler:
+    enabled: false # Not needed for single node
+  system_upgrade_controller:
+    enabled: true
+  traefik:
+    enabled: true # Use built-in, saves resources
+  servicelb:
+    enabled: true # Use built-in
+  metrics_server:
+    enabled: true

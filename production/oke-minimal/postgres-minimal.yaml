@@ -1,0 +1,146 @@
+# Minimal PostgreSQL for OKE
+# Single instance, minimal resources
+apiVersion: v1
+kind: Secret
+metadata:
+  name: temporal-postgres-secret
+  namespace: temporal
+type: Opaque
+stringData:
+  password: "temporal_prod_secret"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: temporal
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi # Minimal storage
+  storageClassName: oci-bv
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: temporal
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: temporal
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-postgres-secret
+                  key: password
+            - name: POSTGRES_DB
+              value: temporal
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+            - name: init-scripts
+              mountPath: /docker-entrypoint-initdb.d
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "temporal"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "temporal"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+        - name: init-scripts
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: temporal
+spec:
+  selector:
+    app: postgres
+  ports:
+    - port: 5432
+      targetPort: 5432
+  clusterIP: None
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: temporal
+data:
+  init.sql: |
+    CREATE DATABASE temporal_visibility;
+    CREATE DATABASE billing;
+
+    \c billing;
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    CREATE TABLE organizations (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        stripe_customer_id VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE subscriptions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        plan VARCHAR(50) NOT NULL DEFAULT 'free',
+        status VARCHAR(50) NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE namespaces (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        name VARCHAR(255) NOT NULL,
+        temporal_namespace VARCHAR(255),
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE api_keys (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        organization_id UUID REFERENCES organizations(id),
+        key_prefix VARCHAR(20) NOT NULL,
+        key_hash VARCHAR(255) NOT NULL,
+        scopes TEXT[],
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );

@@ -1,0 +1,12 @@
+# Budget Terraform Variables Example
+tenancy_ocid     = "ocid1.tenancy.oc1..your-tenancy-ocid"
+user_ocid        = "ocid1.user.oc1..your-user-ocid"
+fingerprint      = "your:fingerprint:here"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "ap-singapore-1"
+compartment_ocid = "ocid1.tenancy.oc1..your-compartment-ocid"
+
+# Budget settings
+budget_amount   = 290  # $290 to leave $10 buffer
+alert_threshold = 80   # Alert at 80%
+alert_email     = "your-email@example.com"

@@ -1,0 +1,26 @@
+# OKE Terraform Variables - Copy to terraform.tfvars and fill in
+
+# OCI Authentication (same as K3s setup)
+tenancy_ocid     = "ocid1.tenancy.oc1..your-tenancy-ocid"
+user_ocid        = "ocid1.user.oc1..your-user-ocid"
+fingerprint      = "your:api:key:fingerprint"
+private_key_path = "/path/to/.oci/oci_api_key.pem"
+
+# Region and Availability
+region              = "ap-singapore-1"
+availability_domain = "ldIz:AP-SINGAPORE-1-AD-1"
+compartment_ocid    = "ocid1.tenancy.oc1..your-compartment-ocid"
+
+# Cluster Configuration
+cluster_name       = "temporal-cloud"
+kubernetes_version = "v1.28.2"
+
+# Node Pool - Optimized for Always Free Tier
+# Total free: 4 OCPU + 24GB RAM for ARM instances
+node_count         = 2   # 2 nodes
+node_ocpus         = 2   # 2 OCPU each = 4 total
+node_memory_in_gbs = 12  # 12 GB each = 24 total
+
+# Find ARM image for your region:
+# oci compute image list --compartment-id <compartment> --shape VM.Standard.A1.Flex --all
+node_image_id = "ocid1.image.oc1.ap-singapore-1.your-image-ocid"

@@ -1,0 +1,66 @@
+# Admin Portal for OKE
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: admin-portal-config
+  namespace: temporal-cloud
+data:
+  NEXT_PUBLIC_BILLING_API: "/api"
+  NEXT_PUBLIC_TEMPORAL_UI: "/temporal"
+  NEXT_PUBLIC_ORG_ID: "demo-org"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: admin-portal
+  namespace: temporal-cloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: admin-portal
+  template:
+    metadata:
+      labels:
+        app: admin-portal
+    spec:
+      containers:
+        - name: admin-portal
+          image: ghcr.io/temporalio/temporal-cloud-admin-portal:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: admin-portal-config
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-portal
+  namespace: temporal-cloud
+spec:
+  selector:
+    app: admin-portal
+  ports:
+    - port: 3000
+      targetPort: 3000

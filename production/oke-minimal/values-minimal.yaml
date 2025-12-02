@@ -1,0 +1,113 @@
+# Minimal Temporal Helm Values for OKE
+# Uses official temporalio/helm-charts
+# Optimized for $0 customers - scale up when needed
+
+server:
+  replicaCount: 1 # Single replica for cost savings
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  config:
+    persistence:
+      default:
+        driver: "sql"
+        sql:
+          driver: "postgres"
+          host: "postgres"
+          port: 5432
+          database: "temporal"
+          user: "temporal"
+          existingSecret: "temporal-postgres-secret"
+          maxConns: 10
+          maxIdleConns: 5
+      visibility:
+        driver: "sql"
+        sql:
+          driver: "postgres"
+          host: "postgres"
+          port: 5432
+          database: "temporal_visibility"
+          user: "temporal"
+          existingSecret: "temporal-postgres-secret"
+          maxConns: 5
+          maxIdleConns: 2
+
+frontend:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+history:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+matching:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+worker:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "128Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+web:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+
+# Disable Elasticsearch for cost savings (use PostgreSQL visibility)
+elasticsearch:
+  enabled: false
+
+# Disable Prometheus/Grafana (use OCI monitoring)
+prometheus:
+  enabled: false
+
+grafana:
+  enabled: false
+
+# Use external PostgreSQL
+postgresql:
+  enabled: false
+
+# Cassandra disabled
+cassandra:
+  enabled: false
+
+# MySQL disabled
+mysql:
+  enabled: false

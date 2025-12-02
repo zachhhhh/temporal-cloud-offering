@@ -1,0 +1,182 @@
+version: "3.8"
+
+services:
+  # PostgreSQL for Temporal + Billing
+  postgresql:
+    image: postgres:15-alpine
+    container_name: temporal-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch for visibility
+  elasticsearch:
+    image: elasticsearch:7.17.9
+    container_name: temporal-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Temporal Server
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: temporal-server
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=postgresql
+      - ENABLE_ES=true
+      - ES_SEEDS=elasticsearch
+      - ES_VERSION=v7
+      - PROMETHEUS_ENDPOINT=0.0.0.0:9090
+    ports:
+      - "7233:7233"
+      - "7234:7234"
+      - "7235:7235"
+      - "7239:7239"
+    volumes:
+      - ./dynamicconfig:/etc/temporal/config/dynamicconfig
+
+  # Temporal UI (Official - Self-Hosted Config)
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000,http://localhost:8080
+      - TEMPORAL_NOTIFY_ON_NEW_VERSION=false
+      - TEMPORAL_FEEDBACK_URL=mailto:support@yourdomain.com
+      - TEMPORAL_UI_PUBLIC_PATH=
+    volumes:
+      - ./temporal-ui-config.yaml:/etc/temporal/config/ui.yaml
+    ports:
+      - "8080:8080"
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: temporal-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    ports:
+      - "9090:9090"
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: temporal-grafana
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: temporal-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # Billing Service
+  billing-service:
+    build:
+      context: ../billing-service
+      dockerfile: Dockerfile
+    container_name: temporal-billing
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - DATABASE_URL=postgres://temporal:temporal@postgresql:5432/billing?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    ports:
+      - "8082:8082"
+
+  # Usage Collector
+  usage-collector:
+    build:
+      context: ../usage-collector
+      dockerfile: Dockerfile
+    container_name: temporal-usage-collector
+    depends_on:
+      - prometheus
+      - postgresql
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - DATABASE_URL=postgres://temporal:temporal@postgresql:5432/billing?sslmode=disable
+      - COLLECTION_INTERVAL=60s
+    ports:
+      - "8083:8083"
+
+  # Admin Portal
+  admin-portal:
+    build:
+      context: ../admin-portal
+      dockerfile: Dockerfile
+    container_name: temporal-admin-portal
+    depends_on:
+      - billing-service
+    environment:
+      - BILLING_SERVICE_URL=http://billing-service:8082
+      - TEMPORAL_UI_URL=http://localhost:8080
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+  redis_data:
+
+networks:
+  default:
+    name: temporal-cloud-network

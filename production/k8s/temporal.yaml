@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-server
+  namespace: temporal-cloud
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: temporal-server
+  template:
+    metadata:
+      labels:
+        app: temporal-server
+    spec:
+      nodeSelector:
+        workload: temporal
+      tolerations:
+        - key: workload
+          value: temporal
+          effect: NoSchedule
+      containers:
+        - name: temporal
+          image: temporalio/auto-setup:latest
+          ports:
+            - containerPort: 7233
+              name: grpc
+            - containerPort: 7234
+              name: grpc-frontend
+            - containerPort: 7235
+              name: grpc-matching
+            - containerPort: 7239
+              name: metrics
+          env:
+            - name: DB
+              value: postgres12
+            - name: DB_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-cloud-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: temporal-cloud-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_SEEDS
+              value: postgres.temporal-cloud.svc.cluster.local
+            - name: ENABLE_ES
+              value: "true"
+            - name: ES_SEEDS
+              value: elasticsearch.temporal-cloud.svc.cluster.local
+            - name: ES_VERSION
+              value: v7
+            - name: PROMETHEUS_ENDPOINT
+              value: "0.0.0.0:9090"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2000m"
+          readinessProbe:
+            tcpSocket:
+              port: 7233
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7233
+            initialDelaySeconds: 60
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal
+  namespace: temporal-cloud
+spec:
+  selector:
+    app: temporal-server
+  ports:
+    - name: grpc
+      port: 7233
+      targetPort: 7233
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temporal-ui
+  namespace: temporal-cloud
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: temporal-ui
+  template:
+    metadata:
+      labels:
+        app: temporal-ui
+    spec:
+      containers:
+        - name: temporal-ui
+          image: temporalio/ui:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: TEMPORAL_ADDRESS
+              value: temporal.temporal-cloud.svc.cluster.local:7233
+            - name: TEMPORAL_CORS_ORIGINS
+              value: "https://cloud.yourdomain.com"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: temporal-ui
+  namespace: temporal-cloud
+spec:
+  selector:
+    app: temporal-ui
+  ports:
+    - port: 8080
+      targetPort: 8080

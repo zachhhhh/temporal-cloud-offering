@@ -1,0 +1,163 @@
+# Temporal Cloud Helm Values
+# Optimized for Oracle Cloud Free Tier (limited resources)
+
+global:
+  domain: "temporal.example.com" # Change to your domain
+  storageClass: "longhorn"
+
+# PostgreSQL Configuration
+postgresql:
+  enabled: true
+  auth:
+    postgresPassword: "temporal123"
+    database: "temporal"
+  primary:
+    persistence:
+      size: 10Gi
+      storageClass: "longhorn"
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+
+# Redis Configuration
+redis:
+  enabled: true
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      size: 1Gi
+      storageClass: "longhorn"
+    resources:
+      requests:
+        memory: 64Mi
+        cpu: 50m
+      limits:
+        memory: 128Mi
+        cpu: 200m
+
+# Temporal Server
+temporal:
+  enabled: true
+  image:
+    repository: temporalio/auto-setup
+    tag: latest
+  replicas: 1
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+  service:
+    type: ClusterIP
+    port: 7233
+
+# Temporal UI
+temporalUI:
+  enabled: true
+  image:
+    repository: temporalio/ui
+    tag: latest
+  replicas: 1
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: temporal.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: temporal-ui-tls
+        hosts:
+          - temporal.example.com
+
+# Billing Service
+billing:
+  enabled: true
+  image:
+    repository: python
+    tag: 3.11-alpine
+  replicas: 1
+  resources:
+    requests:
+      memory: 64Mi
+      cpu: 50m
+    limits:
+      memory: 128Mi
+      cpu: 200m
+  env:
+    STRIPE_SECRET_KEY: "" # Set via secret
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: billing-api-tls
+        hosts:
+          - api.example.com
+
+# Admin Portal
+adminPortal:
+  enabled: true
+  image:
+    repository: node
+    tag: 20-alpine
+  replicas: 1
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 100m
+    limits:
+      memory: 256Mi
+      cpu: 300m
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - host: cloud.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: admin-portal-tls
+        hosts:
+          - cloud.example.com
+
+# Prometheus (for usage collection)
+prometheus:
+  enabled: true
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  persistence:
+    size: 5Gi
+    storageClass: "longhorn"
