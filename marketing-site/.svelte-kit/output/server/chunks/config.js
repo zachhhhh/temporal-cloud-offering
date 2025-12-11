@@ -1,8 +1,10 @@
 const config = {
   siteName: "Temporal Cloud",
   // Your service URLs (update these for production)
+  // NOTE: temporal-ui requires a Temporal server backend. Use admin-portal for standalone demo.
+  // Once Temporal server is deployed, switch app URL to temporal-ui.
   urls: {
-    // Admin portal / console (Next.js) - where users land after login
+    // Admin portal for standalone billing/settings (until Temporal server is deployed)
     app: "https://temporal-admin-portal.pages.dev",
     docs: "https://docs.temporal.io",
     community: "https://community.temporal.io",
