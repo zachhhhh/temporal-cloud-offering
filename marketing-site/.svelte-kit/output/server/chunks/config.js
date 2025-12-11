@@ -1,11 +1,9 @@
 const config = {
   siteName: "Temporal Cloud",
   // Your service URLs (update these for production)
-  // NOTE: temporal-ui requires a Temporal server backend. Use admin-portal for standalone demo.
-  // Once Temporal server is deployed, switch app URL to temporal-ui.
   urls: {
-    // Admin portal for standalone billing/settings (until Temporal server is deployed)
-    app: "https://temporal-admin-portal.pages.dev",
+    // Temporal UI on Oracle Cloud - includes billing, usage, settings
+    app: "http://152.69.216.238/cloud/billing",
     docs: "https://docs.temporal.io",
     community: "https://community.temporal.io",
     slack: "https://temporal.io/slack",

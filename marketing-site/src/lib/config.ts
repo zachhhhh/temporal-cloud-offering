@@ -4,15 +4,11 @@ export const config = {
   tagline: "Build Invincible Applications",
 
   // Your service URLs (update these for production)
-  // NOTE: temporal-ui requires a Temporal server backend. Use admin-portal for standalone demo.
-  // Once Temporal server is deployed, switch app URL to temporal-ui.
   urls: {
-    // Admin portal for standalone billing/settings (until Temporal server is deployed)
-    app:
-      import.meta.env.VITE_APP_URL || "https://temporal-admin-portal.pages.dev",
-    // Temporal UI - requires Temporal server backend
-    temporalUI:
-      import.meta.env.VITE_TEMPORAL_UI || "https://temporal-ui.pages.dev",
+    // Temporal UI on Oracle Cloud - includes billing, usage, settings
+    app: import.meta.env.VITE_APP_URL || "http://152.69.216.238/cloud/billing",
+    // Temporal UI - main workflows interface
+    temporalUI: import.meta.env.VITE_TEMPORAL_UI || "http://152.69.216.238",
     // Use relative path for API - Cloudflare Pages Functions will proxy to OKE
     billingAPI: import.meta.env.VITE_BILLING_API || "",
     docs: "https://docs.temporal.io",
