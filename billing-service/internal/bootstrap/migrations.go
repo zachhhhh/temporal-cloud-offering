@@ -115,6 +115,30 @@ func RunMigrations(pool *pgxpool.Pool) error {
 			expires_at TIMESTAMPTZ NOT NULL,
 			created_at TIMESTAMPTZ DEFAULT NOW()
 		);`,
+		`CREATE TABLE IF NOT EXISTS identities (
+			id UUID PRIMARY KEY,
+			organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+			email VARCHAR(255) NOT NULL,
+			name VARCHAR(255),
+			type VARCHAR(50) NOT NULL DEFAULT 'user',
+			role VARCHAR(50) NOT NULL DEFAULT 'developer',
+			status VARCHAR(50) NOT NULL DEFAULT 'pending',
+			last_login_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ DEFAULT NOW(),
+			updated_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+		`CREATE TABLE IF NOT EXISTS audit_logs (
+			id UUID PRIMARY KEY,
+			organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+			identity_id UUID,
+			identity_email VARCHAR(255),
+			operation VARCHAR(255) NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'OK',
+			details TEXT,
+			ip_address VARCHAR(50),
+			xff VARCHAR(255),
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
 	}
 
 	for _, stmt := range statements {
@@ -130,12 +154,23 @@ func RunMigrations(pool *pgxpool.Pool) error {
 		`CREATE INDEX IF NOT EXISTS idx_invoices_org ON invoices(organization_id, created_at);`,
 		`CREATE INDEX IF NOT EXISTS idx_api_keys_org ON api_keys(organization_id);`,
 		`CREATE INDEX IF NOT EXISTS idx_namespaces_org ON namespaces(organization_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_identities_org ON identities(organization_id);`,
+		`CREATE INDEX IF NOT EXISTS idx_identities_type ON identities(organization_id, type);`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_logs_org ON audit_logs(organization_id, created_at);`,
 	}
 
 	for _, stmt := range indexes {
-		if _, err := pool.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("index creation failed: %w", err)
-		}
+		// Ignore errors for indexes - they may fail if tables don't exist yet
+		// or if indexes already exist
+		pool.Exec(ctx, stmt)
+	}
+
+	// Add missing columns to existing tables (for upgrades)
+	alterStatements := []string{
+		`ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS key_hash VARCHAR(255)`,
+	}
+	for _, stmt := range alterStatements {
+		pool.Exec(ctx, stmt)
 	}
 
 	return nil

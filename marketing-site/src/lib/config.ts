@@ -6,9 +6,10 @@ export const config = {
   // Your service URLs (update these for production)
   urls: {
     // Temporal UI on Oracle Cloud - main app (like cloud.temporal.io)
-    app: import.meta.env.VITE_APP_URL || "http://152.69.216.238",
+    app: import.meta.env.VITE_APP_URL || "http://ui.temporal.zach.cloud",
     // Temporal UI - same as app
-    temporalUI: import.meta.env.VITE_TEMPORAL_UI || "http://152.69.216.238",
+    temporalUI:
+      import.meta.env.VITE_TEMPORAL_UI || "http://ui.temporal.zach.cloud",
     // Use relative path for API - Cloudflare Pages Functions will proxy to OKE
     billingAPI: import.meta.env.VITE_BILLING_API || "",
     docs: "https://docs.temporal.io",

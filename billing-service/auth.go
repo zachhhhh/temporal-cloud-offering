@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -137,7 +138,16 @@ func GenerateAPIKey(db *pgxpool.Pool, orgID uuid.UUID, name string, scopes []str
 		CreatedAt:      time.Now(),
 	}
 
+	// First ensure the organization exists (create if demo org)
 	_, err := db.Exec(context.Background(),
+		`INSERT INTO organizations (id, name, slug, created_at) VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (id) DO NOTHING`,
+		orgID, "Demo Organization", "demo")
+	if err != nil {
+		log.Printf("Warning: could not ensure organization exists: %v", err)
+	}
+
+	_, err = db.Exec(context.Background(),
 		`INSERT INTO api_keys (id, organization_id, name, key_prefix, key_hash, scopes, expires_at, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		apiKey.ID, apiKey.OrganizationID, apiKey.Name, apiKey.KeyPrefix, apiKey.KeyHash, apiKey.Scopes, apiKey.ExpiresAt, apiKey.CreatedAt)

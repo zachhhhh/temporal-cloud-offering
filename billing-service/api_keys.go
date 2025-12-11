@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -73,6 +74,7 @@ func (s *BillingService) CreateAPIKey(w http.ResponseWriter, r *http.Request) {
 	// Generate the key
 	key, apiKey, err := GenerateAPIKey(s.db, orgID, req.Name, req.Scopes, expiresAt)
 	if err != nil {
+		log.Printf("Failed to create API key: %v", err)
 		http.Error(w, `{"error": "failed to create API key"}`, http.StatusInternalServerError)
 		return
 	}

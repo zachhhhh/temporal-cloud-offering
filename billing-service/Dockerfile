@@ -12,9 +12,9 @@ FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /app
-COPY --from=builder /app/billing-service .
+WORKDIR /srv
+COPY --from=builder /app/billing-service /usr/local/bin/billing-service
 
 EXPOSE 8082
 
-CMD ["./billing-service"]
+CMD ["/usr/local/bin/billing-service"]

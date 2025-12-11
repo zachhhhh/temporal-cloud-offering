@@ -97,6 +97,19 @@ func main() {
 	api.HandleFunc("/organizations/{org_id}/api-keys", svc.CreateAPIKey).Methods("POST")
 	api.HandleFunc("/api-keys/{key_id}", svc.DeleteAPIKey).Methods("DELETE")
 
+	// Identity management endpoints (Settings page)
+	api.HandleFunc("/organizations/{org_id}/identities", svc.ListIdentities).Methods("GET")
+	api.HandleFunc("/organizations/{org_id}/identities", svc.CreateIdentity).Methods("POST")
+	api.HandleFunc("/identities/{identity_id}", svc.GetIdentity).Methods("GET")
+	api.HandleFunc("/identities/{identity_id}", svc.UpdateIdentity).Methods("PUT")
+	api.HandleFunc("/identities/{identity_id}", svc.DeleteIdentity).Methods("DELETE")
+
+	// Audit log endpoints (Settings page)
+	api.HandleFunc("/organizations/{org_id}/audit-logs", svc.ListAuditLogs).Methods("GET")
+
+	// Account stats endpoint (Settings page)
+	api.HandleFunc("/organizations/{org_id}/stats", svc.GetAccountStats).Methods("GET")
+
 	// Stripe checkout endpoint
 	api.HandleFunc("/stripe/checkout", svc.CreateCheckoutSession).Methods("POST")
 
