@@ -2,8 +2,8 @@ const config = {
   siteName: "Temporal Cloud",
   // Your service URLs (update these for production)
   urls: {
-    // Temporal UI on Oracle Cloud - includes billing, usage, settings
-    app: "http://152.69.216.238/cloud/billing",
+    // Temporal UI on Oracle Cloud - main app (like cloud.temporal.io)
+    app: "http://152.69.216.238",
     docs: "https://docs.temporal.io",
     community: "https://community.temporal.io",
     slack: "https://temporal.io/slack",

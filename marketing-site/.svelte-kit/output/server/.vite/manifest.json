@@ -13,7 +13,7 @@
     "file": "chunks/auth.js",
     "name": "auth",
     "imports": [
-      "_exports.js"
+      "_index.js"
     ]
   },
   "_config.js": {
@@ -34,10 +34,7 @@
   },
   "_exports.js": {
     "file": "chunks/exports.js",
-    "name": "exports",
-    "imports": [
-      "_context.js"
-    ]
+    "name": "exports"
   },
   "_false.js": {
     "file": "chunks/false.js",
@@ -45,6 +42,13 @@
   },
   "_index.js": {
     "file": "chunks/index.js",
+    "name": "index",
+    "imports": [
+      "_context.js"
+    ]
+  },
+  "_index2.js": {
+    "file": "chunks/index2.js",
     "name": "index",
     "imports": [
       "_escaping.js",
@@ -56,7 +60,7 @@
     "file": "chunks/internal.js",
     "name": "internal",
     "imports": [
-      "_index.js",
+      "_index2.js",
       "_context.js",
       "_environment.js"
     ]
@@ -100,6 +104,7 @@
       "_state.svelte.js",
       "_exports.js",
       "_utils.js",
+      "_index.js",
       "_context.js"
     ]
   },
@@ -114,6 +119,7 @@
       "_shared.js",
       "_exports.js",
       "_utils.js",
+      "_index.js",
       "_internal.js"
     ]
   },
@@ -123,7 +129,7 @@
     "src": "src/routes/+layout.svelte",
     "isEntry": true,
     "imports": [
-      "_index.js",
+      "_index2.js",
       "_config.js",
       "_auth.js",
       "_exports.js",
@@ -132,7 +138,7 @@
       "_escaping.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.BL628N5d.css"
+      "_app/immutable/assets/_layout.IJy8QVm6.css"
     ]
   },
   "src/routes/+layout.ts": {
@@ -147,7 +153,7 @@
     "src": "src/routes/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index.js",
+      "_index2.js",
       "_config.js",
       "_escaping.js"
     ]
@@ -194,7 +200,7 @@
     "src": "src/routes/auth/verify/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index.js",
+      "_index2.js",
       "_exports.js",
       "_utils.js",
       "_state.svelte.js",
@@ -297,8 +303,10 @@
     "src": "src/routes/login/+page.svelte",
     "isEntry": true,
     "imports": [
-      "_index.js",
-      "_config.js",
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
       "_escaping.js"
     ]
   }

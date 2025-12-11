@@ -1,4 +1,4 @@
-import { w as writable } from "./exports.js";
+import { w as writable } from "./index.js";
 function getInitialUser() {
   return null;
 }

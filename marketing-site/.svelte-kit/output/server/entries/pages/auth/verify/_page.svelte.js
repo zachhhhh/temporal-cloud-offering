@@ -1,4 +1,4 @@
-import { U as head } from "../../../../chunks/index.js";
+import { U as head } from "../../../../chunks/index2.js";
 import "@sveltejs/kit/internal";
 import "../../../../chunks/exports.js";
 import "../../../../chunks/utils.js";

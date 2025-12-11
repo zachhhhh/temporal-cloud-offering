@@ -1,4 +1,4 @@
-import { U as head, V as ensure_array_like, W as attr, X as store_get, Y as slot, Z as unsubscribe_stores, _ as stringify } from "../../chunks/index.js";
+import { U as head, V as ensure_array_like, W as attr, X as store_get, Y as slot, Z as unsubscribe_stores, _ as stringify } from "../../chunks/index2.js";
 import { c as config } from "../../chunks/config.js";
 import { a as auth } from "../../chunks/auth.js";
 import "@sveltejs/kit/internal";
