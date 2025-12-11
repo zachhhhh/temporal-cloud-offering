@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	"github.com/stripe/stripe-go/v76"
+	"github.com/temporalio/temporal-cloud-offering/billing-service/internal/bootstrap"
 )
 
 func main() {
@@ -31,6 +33,10 @@ func main() {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer pool.Close()
+
+	if err := bootstrap.RunMigrations(pool); err != nil {
+		log.Fatalf("Database migration failed: %v", err)
+	}
 
 	// Create service
 	svc := NewBillingService(pool)
@@ -61,7 +67,8 @@ func main() {
 	api := r.PathPrefix("/api/v1").Subrouter()
 
 	// Enable auth in production
-	if os.Getenv("ENABLE_AUTH") == "true" {
+	enableAuth := os.Getenv("ENABLE_AUTH")
+	if enableAuth == "" || strings.EqualFold(enableAuth, "true") {
 		api.Use(authMiddleware.Authenticate)
 	}
 
@@ -89,6 +96,16 @@ func main() {
 	api.HandleFunc("/organizations/{org_id}/api-keys", svc.ListAPIKeys).Methods("GET")
 	api.HandleFunc("/organizations/{org_id}/api-keys", svc.CreateAPIKey).Methods("POST")
 	api.HandleFunc("/api-keys/{key_id}", svc.DeleteAPIKey).Methods("DELETE")
+
+	// Stripe checkout endpoint
+	api.HandleFunc("/stripe/checkout", svc.CreateCheckoutSession).Methods("POST")
+
+	// Plans endpoint (public)
+	api.HandleFunc("/plans", svc.GetPlans).Methods("GET")
+
+	// Auth endpoints (public)
+	api.HandleFunc("/auth/magic-link", svc.SendMagicLink).Methods("POST")
+	api.HandleFunc("/auth/verify", svc.VerifyMagicLink).Methods("GET")
 
 	// CORS configuration
 	c := cors.New(cors.Options{

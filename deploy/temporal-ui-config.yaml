@@ -1,48 +1,43 @@
-# Temporal UI Configuration - Self-Hosted (No External Links)
+# Temporal UI Configuration with Google SSO
 # Mount this at /etc/temporal/config/ui.yaml in the container
+#
+# Required environment variables (see deploy/.env):
+#   TEMPORAL_UI_HOST          -> e.g. anticipated-*.trycloudflare.com
+#   ADMIN_PORTAL_HOST         -> e.g. sorted-*.trycloudflare.com (optional)
+#   GOOGLE_CLIENT_ID          -> from Google Cloud Console
+#   GOOGLE_CLIENT_SECRET      -> from Google Cloud Console
 
-# Disable external notifications
-notifyOnNewVersion: false
-
-# Point feedback to YOUR support system (not GitHub)
-feedbackUrl: "mailto:support@yourdomain.com"
-
-# Default namespace
+temporalGrpcAddress: temporal-server:7233
+host: 0.0.0.0
+port: 8080
+enableUi: true
 defaultNamespace: default
 
-# Enable UI
-enableUi: true
+notifyOnNewVersion: false
+feedbackUrl: ""
 
-# Port
-port: 8080
-
-# CORS - update with your domains
 cors:
   cookieInsecure: false
   allowOrigins:
-    - http://localhost:3000
-    - https://admin.yourdomain.com
+    - "https://${TEMPORAL_UI_HOST}"
+    - "https://${ADMIN_PORTAL_HOST}"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
 
-# Disable cloud UI features
 cloudUi: false
-
-# Hide server logs from browser console
 hideLogs: false
-# Codec server (if you have one)
-# codec:
-#   endpoint: http://codec-server:8081
 
-# Authentication (enable for production)
-# auth:
-#   enabled: true
-#   providers:
-#     - label: "Login"
-#       type: oidc
-#       providerUrl: https://your-auth-provider.com
-#       clientId: your-client-id
-#       clientSecret: your-client-secret
-#       callbackUrl: https://temporal.yourdomain.com/auth/sso/callback
-#       scopes:
-#         - openid
-#         - profile
-#         - email
+# Google OAuth
+auth:
+  enabled: true
+  providers:
+    - label: "Sign in with Google"
+      type: oidc
+      providerUrl: "https://accounts.google.com"
+      clientId: "${GOOGLE_CLIENT_ID}"
+      clientSecret: "${GOOGLE_CLIENT_SECRET}"
+      scopes:
+        - openid
+        - profile
+        - email
+      callbackUrl: "https://${TEMPORAL_UI_HOST}/sso/callback"

@@ -1,0 +1,125 @@
+# PostgreSQL - Simple deployment using official image
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-postgresql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: oci-bv
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-postgresql
+  labels:
+    app: postgresql
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgresql
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: postgresql
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: postgresql
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_PASSWORD
+              value: temporal123
+            - name: POSTGRES_DB
+              value: temporal
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 50m
+            limits:
+              memory: 256Mi
+              cpu: 250m
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-postgresql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgresql
+  labels:
+    app: postgresql
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: postgresql
+    release: {{ .Release.Name }}
+---
+# Redis - Simple deployment using official image
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-redis
+  labels:
+    app: redis
+    release: {{ .Release.Name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+      release: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app: redis
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              memory: 32Mi
+              cpu: 25m
+            limits:
+              memory: 64Mi
+              cpu: 100m
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+  labels:
+    app: redis
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6379
+      targetPort: 6379
+  selector:
+    app: redis
+    release: {{ .Release.Name }}

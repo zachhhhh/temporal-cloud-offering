@@ -1,6 +1,9 @@
 # Environment files with secrets
 .env
+.env.local
+.env.production
 *.env.local
+production/.env.production
 
 # Dependencies
 node_modules/

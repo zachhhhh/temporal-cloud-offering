@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: temporal-postgres
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-temporal123}
+      POSTGRES_DB: temporal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Temporal Server
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: temporal-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_HOST=postgres
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=${POSTGRES_PASSWORD:-temporal123}
+      - POSTGRES_SEEDS=postgres
+    ports:
+      - "7233:7233"
+    restart: unless-stopped
+
+  # Temporal UI
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: temporal-ui
+    depends_on:
+      - temporal
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=*
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # Billing Service
+  billing:
+    image: temporal-billing:latest
+    container_name: temporal-billing
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://temporal:${POSTGRES_PASSWORD:-temporal123}@postgres:5432/temporal?sslmode=disable
+      - TEMPORAL_ADDRESS=temporal:7233
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - PORT=8082
+    ports:
+      - "8082:8082"
+    restart: unless-stopped
+
+  # Admin Portal
+  admin:
+    image: temporal-admin:latest
+    container_name: temporal-admin
+    depends_on:
+      - billing
+      - temporal-ui
+    environment:
+      - NEXT_PUBLIC_BILLING_API=http://localhost:8082
+      - NEXT_PUBLIC_TEMPORAL_UI=http://localhost:8080
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-change-me}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-}
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # Marketing Site
+  marketing:
+    image: temporal-marketing:latest
+    container_name: temporal-marketing
+    ports:
+      - "5173:5173"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

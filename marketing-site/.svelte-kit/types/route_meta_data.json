@@ -1,0 +1,55 @@
+{
+	"/": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/api/auth/google": [
+		"src/routes/api/auth/google/+server.ts"
+	],
+	"/api/auth/google/callback": [
+		"src/routes/api/auth/google/callback/+server.ts"
+	],
+	"/api/auth/login": [
+		"src/routes/api/auth/login/+server.ts"
+	],
+	"/api/auth/magic-link": [
+		"src/routes/api/auth/magic-link/+server.ts"
+	],
+	"/api/auth/set-password": [
+		"src/routes/api/auth/set-password/+server.ts"
+	],
+	"/api/auth/verify": [
+		"src/routes/api/auth/verify/+server.ts"
+	],
+	"/auth/verify": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/batch-operations": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/billing": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/namespaces": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/schedules": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/settings": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/settings/security": [
+		"src/routes/+layout.ts"
+	],
+	"/dashboard/ui": [
+		"src/routes/+layout.ts"
+	],
+	"/login": [
+		"src/routes/+layout.ts"
+	]
+}

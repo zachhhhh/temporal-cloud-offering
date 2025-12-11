@@ -86,6 +86,22 @@ resource "oci_core_security_list" "oke_api_sl" {
       max = 6443
     }
   }
+
+  # Allow all traffic from worker subnet for API communication
+  ingress_security_rules {
+    protocol = "all"
+    source   = "10.0.10.0/24" # Worker subnet CIDR
+  }
+
+  # Allow ICMP for path discovery
+  ingress_security_rules {
+    protocol = "1" # ICMP
+    source   = "10.0.0.0/16"
+    icmp_options {
+      type = 3
+      code = 4
+    }
+  }
 }
 
 # Security List for Worker Nodes
@@ -131,6 +147,36 @@ resource "oci_core_security_list" "oke_worker_sl" {
     tcp_options {
       min = 443
       max = 443
+    }
+  }
+
+  # Allow SSH for debugging (from VCN)
+  ingress_security_rules {
+    protocol = "6"
+    source   = "10.0.0.0/16"
+    tcp_options {
+      min = 22
+      max = 22
+    }
+  }
+
+  # Allow Kubelet API (10250)
+  ingress_security_rules {
+    protocol = "6"
+    source   = "10.0.0.0/16"
+    tcp_options {
+      min = 10250
+      max = 10250
+    }
+  }
+
+  # Allow ICMP for path discovery
+  ingress_security_rules {
+    protocol = "1"
+    source   = "10.0.0.0/16"
+    icmp_options {
+      type = 3
+      code = 4
     }
   }
 }
@@ -198,37 +244,52 @@ resource "oci_containerengine_cluster" "oke_cluster" {
   type = "BASIC_CLUSTER" # Free tier compatible
 }
 
-# Node Pool with ARM instances (Always Free eligible)
+# Node Pool with minimal E4.Flex instances (most cost-efficient x86)
+# E4.Flex: ~$0.025/OCPU/hour = ~$18/month for 1 OCPU
 resource "oci_containerengine_node_pool" "oke_node_pool" {
   cluster_id         = oci_containerengine_cluster.oke_cluster.id
   compartment_id     = var.compartment_ocid
   kubernetes_version = var.kubernetes_version
   name               = "${var.cluster_name}-pool"
 
-  node_shape = "VM.Standard.E4.Flex" # x86 - Uses $300 credits
+  # VM.Standard.E4.Flex - AMD EPYC, cheapest x86 option
+  # ~$0.025/OCPU/hour vs $0.054 for Standard3.Flex
+  node_shape = var.node_shape
 
   node_shape_config {
-    ocpus         = var.node_ocpus         # 2 OCPU per node (4 total free)
-    memory_in_gbs = var.node_memory_in_gbs # 12 GB per node (24 total free)
+    ocpus         = var.node_ocpus         # 1 OCPU minimum for lean setup
+    memory_in_gbs = var.node_memory_in_gbs # 6 GB (1:6 ratio for E4)
   }
 
   node_config_details {
-    size = var.node_count # 2 nodes to use full free tier
+    size = var.node_count # Start with 1 node
 
     placement_configs {
       availability_domain = var.availability_domain
       subnet_id           = oci_core_subnet.oke_worker_subnet.id
     }
+
+    # Preemptible/Spot capacity - 50% cheaper but can be reclaimed
+    # Comment out if you need guaranteed capacity
+    # node_pool_pod_network_option_details {
+    #   cni_type = "FLANNEL_OVERLAY"
+    # }
   }
 
   node_source_details {
-    image_id    = var.node_image_id
-    source_type = "IMAGE"
+    image_id                = var.node_image_id
+    source_type             = "IMAGE"
+    boot_volume_size_in_gbs = 50 # Minimum boot volume
   }
 
   initial_node_labels {
     key   = "name"
     value = var.cluster_name
+  }
+
+  initial_node_labels {
+    key   = "workload"
+    value = "temporal"
   }
 }
 
@@ -247,4 +308,49 @@ output "kubeconfig_command" {
 
 output "node_pool_id" {
   value = oci_containerengine_node_pool.oke_node_pool.id
+}
+
+# ============================================
+# CLUSTER AUTOSCALER CONFIGURATION
+# ============================================
+# Deploy after cluster is ready with:
+# kubectl apply -f cluster-autoscaler.yaml
+
+output "autoscaler_config" {
+  value = <<-EOT
+    # Cluster Autoscaler for OKE
+    # Scales nodes 0-3 based on pending pods
+    # 
+    # Install:
+    # 1. kubectl create secret generic oci-config --from-file=config=/Users/zach/.oci/config --from-file=key=/Users/zach/.oci/oci_api_key.pem -n kube-system
+    # 2. kubectl apply -f cluster-autoscaler.yaml
+    #
+    # Node pool ID: ${oci_containerengine_node_pool.oke_node_pool.id}
+    # Min nodes: 0 (scale to zero when idle)
+    # Max nodes: 3 (stay under $300/month)
+  EOT
+}
+
+output "monthly_cost_estimate" {
+  value = <<-EOT
+    ESTIMATED MONTHLY COSTS (E4.Flex):
+    ---------------------------------
+    Control Plane: FREE (Basic Cluster)
+    
+    Per Node (1 OCPU, 6GB):
+    - Compute: ~$18/month ($0.025/OCPU/hour)
+    - Boot Volume (50GB): ~$2.50/month
+    - Total per node: ~$20.50/month
+    
+    With Autoscaler (0-3 nodes):
+    - Minimum (0 nodes): ~$0/month (just storage)
+    - 1 node running: ~$20.50/month  
+    - 3 nodes max: ~$61.50/month
+    
+    Other costs:
+    - NAT Gateway: ~$32/month
+    - Load Balancer (if used): ~$10/month
+    
+    TOTAL ESTIMATE: $50-100/month (well under $300)
+  EOT
 }

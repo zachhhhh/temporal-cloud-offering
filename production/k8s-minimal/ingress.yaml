@@ -1,12 +1,14 @@
-# For K3s with Traefik (default)
+# For nginx-ingress on OKE
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: temporal-cloud-ingress
   namespace: temporal-cloud
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
+  ingressClassName: nginx
   rules:
     - http:
         paths:
@@ -14,20 +16,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: admin-portal
-                port:
-                  number: 3000
-          - path: /temporal
-            pathType: Prefix
-            backend:
-              service:
                 name: temporal-ui
                 port:
                   number: 8080
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: billing-service
-                port:
-                  number: 8082

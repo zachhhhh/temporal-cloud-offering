@@ -1,0 +1,10 @@
+name = "temporal-cloud-marketing"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "build"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "62160d6383a14e15be743cefab2e8943"
+
+[vars]
+VITE_ORG_ID = "demo-org"

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,11 +34,17 @@ func main() {
 	}
 	collectionInterval, _ := time.ParseDuration(interval)
 
+	runOnce := strings.EqualFold(os.Getenv("RUN_ONCE"), "true")
+
 	pool, err := pgxpool.New(context.Background(), dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer pool.Close()
+
+	if err := ensureUsageSchema(pool); err != nil {
+		log.Fatalf("Failed to ensure usage schema: %v", err)
+	}
 
 	collector := &UsageCollector{
 		prometheusURL: prometheusURL,
@@ -45,26 +52,32 @@ func main() {
 		httpClient:    &http.Client{Timeout: 30 * time.Second},
 	}
 
-	// Start HTTP server for health checks
-	go func() {
-		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-			json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		})
-		http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("# HELP usage_collector_runs Total collection runs\n"))
-		})
-		log.Println("Usage collector HTTP server listening on :8083")
-		http.ListenAndServe(":8083", nil)
-	}()
+	if !runOnce {
+		// Start HTTP server for health checks
+		go func() {
+			http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+				json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+			})
+			http.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("# HELP usage_collector_runs Total collection runs\n"))
+			})
+			log.Println("Usage collector HTTP server listening on :8083")
+			http.ListenAndServe(":8083", nil)
+		}()
+	}
 
-	// Start collection loop
-	ticker := time.NewTicker(collectionInterval)
-	defer ticker.Stop()
-
-	log.Printf("Starting usage collector (interval: %s)", collectionInterval)
+	log.Printf("Starting usage collector (interval: %s, runOnce=%v)", collectionInterval, runOnce)
 
 	// Initial collection
 	collector.Collect(context.Background())
+
+	if runOnce {
+		log.Println("RUN_ONCE set, exiting after single collection")
+		return
+	}
+
+	ticker := time.NewTicker(collectionInterval)
+	defer ticker.Stop()
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -141,13 +154,13 @@ func (c *UsageCollector) getTrackedNamespaces(ctx context.Context) ([]TrackedNam
 }
 
 type NamespaceUsage struct {
-	ActionCount         int64
-	ActiveStorageBytes  int64
+	ActionCount          int64
+	ActiveStorageBytes   int64
 	RetainedStorageBytes int64
-	WorkflowStarted     int64
-	ActivityStarted     int64
-	TimerStarted        int64
-	SignalSent          int64
+	WorkflowStarted      int64
+	ActivityStarted      int64
+	TimerStarted         int64
+	SignalSent           int64
 }
 
 func (c *UsageCollector) collectNamespaceUsage(ctx context.Context, namespace string) (*NamespaceUsage, error) {
@@ -198,6 +211,13 @@ func (c *UsageCollector) collectNamespaceUsage(ctx context.Context, namespace st
 		usage.ActiveStorageBytes = int64(historySize)
 	}
 
+	// Query retained storage size if metric exists (best-effort)
+	retainedSize, err := c.queryPrometheus(ctx, fmt.Sprintf(
+		`sum(history_size_retained_bytes{namespace="%s"})`, namespace))
+	if err == nil && retainedSize > 0 {
+		usage.RetainedStorageBytes = int64(retainedSize)
+	}
+
 	return usage, nil
 }
 
@@ -220,7 +240,7 @@ func (c *UsageCollector) queryPrometheus(ctx context.Context, query string) (flo
 		Data   struct {
 			ResultType string `json:"resultType"`
 			Result     []struct {
-				Metric model.Metric    `json:"metric"`
+				Metric model.Metric     `json:"metric"`
 				Value  model.SamplePair `json:"value"`
 			} `json:"result"`
 		} `json:"data"`
@@ -275,4 +295,43 @@ func (c *UsageCollector) aggregateHourly(ctx context.Context) {
 	if err != nil {
 		log.Printf("Failed to aggregate hourly usage: %v", err)
 	}
+}
+
+// ensureUsageSchema creates usage tables if they do not exist. It does not touch billing or Temporal tables.
+func ensureUsageSchema(pool *pgxpool.Pool) error {
+	ctx := context.Background()
+	stmts := []string{
+		`CREATE EXTENSION IF NOT EXISTS "pgcrypto";`,
+		`CREATE TABLE IF NOT EXISTS usage_records (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			organization_id UUID NOT NULL,
+			namespace_id VARCHAR(255) NOT NULL,
+			recorded_at TIMESTAMPTZ NOT NULL,
+			action_count BIGINT DEFAULT 0,
+			active_storage_bytes BIGINT DEFAULT 0,
+			retained_storage_bytes BIGINT DEFAULT 0,
+			workflow_started BIGINT DEFAULT 0,
+			activity_started BIGINT DEFAULT 0,
+			timer_started BIGINT DEFAULT 0,
+			signal_sent BIGINT DEFAULT 0,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+		`CREATE TABLE IF NOT EXISTS usage_aggregates (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			organization_id UUID NOT NULL,
+			namespace_id VARCHAR(255),
+			period_start TIMESTAMPTZ NOT NULL,
+			period_end TIMESTAMPTZ NOT NULL,
+			total_actions BIGINT DEFAULT 0,
+			active_storage_gbh DECIMAL(20,6) DEFAULT 0,
+			retained_storage_gbh DECIMAL(20,6) DEFAULT 0,
+			created_at TIMESTAMPTZ DEFAULT NOW()
+		);`,
+	}
+	for _, stmt := range stmts {
+		if _, err := pool.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("failed to ensure usage tables: %w", err)
+		}
+	}
+	return nil
 }

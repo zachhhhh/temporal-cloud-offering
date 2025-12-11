@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Key, Plus, Trash2, Copy, Check, Eye, EyeOff } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Check } from "lucide-react";
+import {
+  authHeaders,
+  fetchJSON,
+  getBillingAPI,
+  getOrgId,
+} from "@/lib/api";
 
 interface APIKey {
   id: string;
@@ -20,10 +26,11 @@ export default function SettingsPage() {
   const [newKey, setNewKey] = useState({ name: "", expires_in: "90d" });
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const BILLING_API =
-    process.env.NEXT_PUBLIC_BILLING_API || "http://localhost:8082";
-  const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "demo-org";
+  const BILLING_API = getBillingAPI();
+  const ORG_ID = getOrgId();
 
   useEffect(() => {
     fetchAPIKeys();
@@ -31,15 +38,14 @@ export default function SettingsPage() {
 
   async function fetchAPIKeys() {
     try {
-      const res = await fetch(
+      const data = await fetchJSON<APIKey[]>(
         `${BILLING_API}/api/v1/organizations/${ORG_ID}/api-keys`
       );
-      if (res.ok) {
-        const data = await res.json();
-        setApiKeys(data || []);
-      }
+      setApiKeys(data || []);
+      setError(null);
     } catch (err) {
       console.error("Failed to fetch API keys:", err);
+      setError("Unable to fetch API keys. Check API key and endpoints.");
     } finally {
       setLoading(false);
     }
@@ -51,7 +57,7 @@ export default function SettingsPage() {
         `${BILLING_API}/api/v1/organizations/${ORG_ID}/api-keys`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders() },
           body: JSON.stringify(newKey),
         }
       );
@@ -72,6 +78,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch(`${BILLING_API}/api/v1/api-keys/${keyId}`, {
         method: "DELETE",
+        headers: { ...authHeaders() },
       });
       if (res.ok) {
         fetchAPIKeys();
@@ -103,6 +110,40 @@ export default function SettingsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8">
         <h1 className="text-2xl font-bold mb-8">Settings</h1>
 
+        {/* Auth configuration */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+          <h2 className="font-semibold mb-2">API Authentication</h2>
+          <p className="text-sm text-zinc-400 mb-4">
+            Paste a billing API key to authenticate requests from this portal.
+            It will be stored in your browser only (cookie/localStorage).
+          </p>
+          <div className="flex gap-3 items-center">
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="tc_live_xxx"
+              className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  document.cookie = `tc_api_key=${apiKeyInput}; path=/; SameSite=Lax`;
+                  localStorage.setItem("tc_api_key", apiKeyInput);
+                  setApiKeyInput("");
+                }
+              }}
+              disabled={!apiKeyInput}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
+            >
+              Save Key
+            </button>
+          </div>
+          <p className="text-xs text-zinc-500 mt-2">
+            Using org: <code className="bg-zinc-800 px-2 py-1 rounded">{ORG_ID || "unset"}</code>
+          </p>
+        </div>
+
         {/* API Keys Section */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl">
           <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
@@ -118,6 +159,12 @@ export default function SettingsPage() {
               Create Key
             </button>
           </div>
+
+          {error && (
+            <div className="m-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-300 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Created Key Alert */}
           {createdKey && (

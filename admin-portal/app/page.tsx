@@ -9,6 +9,7 @@ import {
   Users,
   ExternalLink,
 } from "lucide-react";
+import { getBillingAPI, getOrgId, getTemporalUI, fetchJSON } from "@/lib/api";
 
 interface UsageSummary {
   total_actions: number;
@@ -31,25 +32,29 @@ export default function Dashboard() {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [namespaces, setNamespaces] = useState<Namespace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const BILLING_API =
-    process.env.NEXT_PUBLIC_BILLING_API || "http://localhost:8082";
-  const TEMPORAL_UI =
-    process.env.NEXT_PUBLIC_TEMPORAL_UI || "http://localhost:8080";
-  const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "demo-org";
+  const BILLING_API = getBillingAPI();
+  const TEMPORAL_UI = getTemporalUI();
+  const ORG_ID = getOrgId();
 
   useEffect(() => {
     async function fetchData() {
       try {
         const [usageRes, nsRes] = await Promise.all([
-          fetch(`${BILLING_API}/api/v1/organizations/${ORG_ID}/usage/current`),
-          fetch(`${BILLING_API}/api/v1/organizations/${ORG_ID}/namespaces`),
+          fetchJSON<UsageSummary>(
+            `${BILLING_API}/api/v1/organizations/${ORG_ID}/usage/current`
+          ),
+          fetchJSON<Namespace[]>(
+            `${BILLING_API}/api/v1/organizations/${ORG_ID}/namespaces`
+          ),
         ]);
 
-        if (usageRes.ok) setUsage(await usageRes.json());
-        if (nsRes.ok) setNamespaces(await nsRes.json());
+        setUsage(usageRes);
+        setNamespaces(nsRes);
       } catch (err) {
         console.error("Failed to fetch data:", err);
+        setError("Unable to load usage. Check API key and endpoints.");
       } finally {
         setLoading(false);
       }
@@ -164,7 +169,9 @@ export default function Dashboard() {
           </div>
 
           <div className="divide-y divide-zinc-800">
-            {loading ? (
+            {error ? (
+              <div className="px-6 py-8 text-center text-red-400">{error}</div>
+            ) : loading ? (
               <div className="px-6 py-8 text-center text-zinc-500">
                 Loading...
               </div>
@@ -195,14 +202,17 @@ export default function Dashboard() {
                     >
                       {ns.status}
                     </span>
-                    <a
-                      href={`${TEMPORAL_UI}/namespaces/${ns.temporal_namespace}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-indigo-400 hover:text-indigo-300 text-sm"
-                    >
-                      View in Temporal UI →
-                    </a>
+                    {TEMPORAL_UI && (
+                      <a
+                        href={`${TEMPORAL_UI}/namespaces/${ns.temporal_namespace}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-indigo-400 hover:text-indigo-300 text-sm flex items-center gap-1"
+                      >
+                        View in Temporal UI
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
                 </div>
               ))

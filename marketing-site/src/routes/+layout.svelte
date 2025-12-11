@@ -1,0 +1,268 @@
+<script lang="ts">
+	import '../app.css';
+	import { config } from '$lib/config';
+	import { auth } from '$lib/stores/auth';
+	import { goto } from '$app/navigation';
+	
+	let mobileMenuOpen = false;
+	
+	function handleLogout() {
+		auth.logout();
+		goto('/');
+	}
+</script>
+
+<svelte:head>
+	<title>{config.siteName} - Durable Execution Platform</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</svelte:head>
+
+<!-- Navigation - Temporal.io style -->
+<nav class="fixed top-0 w-full z-50 bg-[#0d0620]/95 backdrop-blur-md">
+	<div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+		<a href="/" class="flex items-center gap-2">
+			<!-- Temporal Logo - matching temporal.io -->
+			<svg class="w-8 h-8" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M16 0C7.163 0 0 7.163 0 16s7.163 16 16 16 16-7.163 16-16S24.837 0 16 0z" fill="white"/>
+				<path d="M16 4c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12S22.627 4 16 4zm0 2c5.523 0 10 4.477 10 10s-4.477 10-10 10S6 21.523 6 16 10.477 6 16 6z" fill="#0d0620"/>
+				<path d="M16 8v8l6 3" stroke="#0d0620" stroke-width="2" stroke-linecap="round"/>
+			</svg>
+			<span class="text-xl font-semibold text-white">Temporal</span>
+		</a>
+		
+		<!-- Desktop Navigation -->
+		<div class="hidden lg:flex items-center gap-8">
+			{#each config.nav as item}
+				<a 
+					href={item.href} 
+					target={item.external ? '_blank' : undefined}
+					rel={item.external ? 'noopener noreferrer' : undefined}
+					class="text-zinc-300 hover:text-white transition-colors text-sm font-medium"
+				>
+					{item.label}
+				</a>
+			{/each}
+		</div>
+		
+		<!-- Desktop CTA -->
+		<div class="hidden lg:flex items-center gap-4">
+			{#if $auth}
+				<!-- Logged in: show user menu -->
+				<a href={config.urls.app} class="text-zinc-300 hover:text-white transition-colors text-sm font-medium">
+					Dashboard
+				</a>
+				<div class="relative group">
+					<button class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors">
+						<div class="w-8 h-8 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center text-black font-semibold text-sm">
+							{$auth.name?.charAt(0).toUpperCase() || $auth.email?.charAt(0).toUpperCase()}
+						</div>
+						<svg class="w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+						</svg>
+					</button>
+					<!-- Dropdown menu -->
+					<div class="absolute right-0 mt-2 w-48 py-2 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
+						<div class="px-4 py-2 border-b border-zinc-800">
+							<p class="text-sm text-white truncate">{$auth.name || 'User'}</p>
+							<p class="text-xs text-zinc-500 truncate">{$auth.email}</p>
+						</div>
+						<a href={config.urls.app} class="block px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors">
+							Console
+						</a>
+						<button 
+							on:click={handleLogout}
+							class="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors"
+						>
+							Sign Out
+						</button>
+					</div>
+				</div>
+			{:else}
+				<!-- Not logged in: show login/signup -->
+				<a href="/login" class="text-zinc-300 hover:text-white transition-colors text-sm font-medium">
+					Log In
+				</a>
+				<a 
+					href="/login"
+					class="px-4 py-2 bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-semibold rounded-lg text-sm transition-all hover:shadow-lg hover:shadow-emerald-400/20"
+				>
+					Get Started
+				</a>
+			{/if}
+		</div>
+		
+		<!-- Mobile menu button -->
+		<button 
+			class="lg:hidden p-2 text-white"
+			on:click={() => mobileMenuOpen = !mobileMenuOpen}
+		>
+			<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				{#if mobileMenuOpen}
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+				{:else}
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+				{/if}
+			</svg>
+		</button>
+	</div>
+	
+	<!-- Mobile menu -->
+	{#if mobileMenuOpen}
+		<div class="lg:hidden bg-[#0d0620] border-t border-zinc-800/50 px-6 py-4">
+			{#each config.nav as item}
+				<a 
+					href={item.href} 
+					target={item.external ? '_blank' : undefined}
+					rel={item.external ? 'noopener noreferrer' : undefined}
+					class="block py-3 text-zinc-300 hover:text-white transition-colors font-medium"
+					on:click={() => mobileMenuOpen = false}
+				>
+					{item.label}
+				</a>
+			{/each}
+			<div class="pt-4 mt-4 border-t border-zinc-800/50 space-y-3">
+				{#if $auth}
+					<div class="py-2 text-zinc-400 text-sm">
+						Signed in as {$auth.email}
+					</div>
+					<a href={config.urls.app} class="block py-2 text-zinc-300 hover:text-white transition-colors font-medium">
+						Console
+					</a>
+					<button 
+						on:click={() => { handleLogout(); mobileMenuOpen = false; }}
+						class="block w-full text-left py-2 text-zinc-300 hover:text-white transition-colors font-medium"
+					>
+						Sign Out
+					</button>
+				{:else}
+					<a href="/login" class="block py-2 text-zinc-300 hover:text-white transition-colors font-medium">
+						Log In
+					</a>
+					<a 
+						href="/login"
+						class="block py-2 px-4 bg-gradient-to-r from-emerald-400 to-cyan-400 text-black font-semibold rounded-lg text-center"
+					>
+						Get Started
+					</a>
+				{/if}
+			</div>
+		</div>
+	{/if}
+</nav>
+
+<main class="pt-16">
+	<slot />
+</main>
+
+<!-- Footer - Temporal.io style with dark space theme -->
+<footer class="relative bg-[#0a0612] overflow-hidden">
+	<!-- Background illustration -->
+	<div class="absolute inset-0 opacity-30">
+		<div class="absolute bottom-0 left-0 right-0 h-64 bg-gradient-to-t from-indigo-900/20 to-transparent"></div>
+	</div>
+	
+	<div class="relative max-w-7xl mx-auto px-6 py-16">
+		<!-- Status and Social -->
+		<div class="flex flex-col md:flex-row items-center justify-between mb-12 pb-8 border-b border-zinc-800/50">
+			<a href="https://status.temporal.io" target="_blank" rel="noopener" class="flex items-center gap-2 text-emerald-400 text-sm font-medium mb-4 md:mb-0">
+				<span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+				ALL SYSTEMS OPERATIONAL
+			</a>
+			<div class="flex items-center gap-4">
+				<a href={config.urls.youtube} target="_blank" rel="noopener" aria-label="YouTube" class="p-2 text-zinc-400 hover:text-white transition rounded-lg hover:bg-zinc-800/50">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+				</a>
+				<a href={config.urls.twitter} target="_blank" rel="noopener" aria-label="Twitter" class="p-2 text-zinc-400 hover:text-white transition rounded-lg hover:bg-zinc-800/50">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+				</a>
+				<a href={config.urls.github} target="_blank" rel="noopener" aria-label="GitHub" class="p-2 text-zinc-400 hover:text-white transition rounded-lg hover:bg-zinc-800/50">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+				</a>
+				<a href="https://linkedin.com/company/temporal-technologies" target="_blank" rel="noopener" aria-label="LinkedIn" class="p-2 text-zinc-400 hover:text-white transition rounded-lg hover:bg-zinc-800/50">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+				</a>
+				<a href={config.urls.slack} target="_blank" rel="noopener" aria-label="Slack" class="p-2 text-zinc-400 hover:text-white transition rounded-lg hover:bg-zinc-800/50">
+					<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
+				</a>
+			</div>
+		</div>
+		
+		<!-- Footer Links -->
+		<div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+			<div>
+				<h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Discover</h4>
+				<ul class="space-y-3 text-sm">
+					<li><a href="#product" class="text-zinc-400 hover:text-white transition">Overview</a></li>
+					<li><a href="#product" class="text-zinc-400 hover:text-white transition">How It Works</a></li>
+					<li><a href={config.urls.app} class="text-zinc-400 hover:text-white transition">Temporal Cloud</a></li>
+					<li><a href="#pricing" class="text-zinc-400 hover:text-white transition">Pricing</a></li>
+				</ul>
+			</div>
+			
+			<div>
+				<h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Explore</h4>
+				<ul class="space-y-3 text-sm">
+					<li><a href="/customers" class="text-zinc-400 hover:text-white transition">Customer Stories</a></li>
+					<li><a href="https://learn.temporal.io/tutorials/" target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Tutorials</a></li>
+					<li><a href="https://learn.temporal.io/examples/" target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Examples</a></li>
+					<li><a href="/blog" class="text-zinc-400 hover:text-white transition">Blog</a></li>
+				</ul>
+			</div>
+			
+			<div>
+				<h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Developers</h4>
+				<ul class="space-y-3 text-sm">
+					<li><a href="https://learn.temporal.io/getting_started/" target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Getting Started</a></li>
+					<li><a href={config.urls.docs} target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Documentation</a></li>
+					<li><a href="https://docs.temporal.io/cloud" target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Cloud Docs</a></li>
+					<li><a href="https://learn.temporal.io/courses/temporal_101/" target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Temporal 101</a></li>
+				</ul>
+			</div>
+			
+			<div>
+				<h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Community</h4>
+				<ul class="space-y-3 text-sm">
+					<li><a href={config.urls.slack} target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Slack</a></li>
+					<li><a href={config.urls.community} target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">Forum</a></li>
+					<li><a href="/events" class="text-zinc-400 hover:text-white transition">Events</a></li>
+					<li><a href={config.urls.github} target="_blank" rel="noopener" class="text-zinc-400 hover:text-white transition">GitHub</a></li>
+				</ul>
+			</div>
+			
+			<div>
+				<h4 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-4">Company</h4>
+				<ul class="space-y-3 text-sm">
+					<li><a href="/about" class="text-zinc-400 hover:text-white transition">About</a></li>
+					<li><a href="/careers" class="text-zinc-400 hover:text-white transition">Careers</a></li>
+					<li><a href="/news" class="text-zinc-400 hover:text-white transition">News</a></li>
+					<li><a href="mailto:{config.company.email}" class="text-zinc-400 hover:text-white transition">Contact</a></li>
+				</ul>
+			</div>
+		</div>
+		
+		<!-- Newsletter and Copyright -->
+		<div class="flex flex-col md:flex-row items-center justify-between pt-8 border-t border-zinc-800/50">
+			<div class="flex items-center gap-4 mb-6 md:mb-0">
+				<input 
+					type="email" 
+					placeholder="Email Address" 
+					class="px-4 py-2 bg-white text-black rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+				/>
+				<button aria-label="Subscribe to newsletter" class="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition">
+					<svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+					</svg>
+				</button>
+			</div>
+			
+			<div class="flex flex-wrap items-center justify-center gap-4 text-xs text-zinc-500">
+				<span>© {new Date().getFullYear()} Temporal Technologies. All Rights Reserved.</span>
+				<a href="/privacy" class="hover:text-white transition">Privacy Policy</a>
+				<a href="/terms" class="hover:text-white transition">Terms of Service</a>
+				<a href="/code-of-conduct" class="hover:text-white transition">Code of Conduct</a>
+			</div>
+		</div>
+	</div>
+</footer>

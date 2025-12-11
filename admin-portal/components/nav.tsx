@@ -8,18 +8,24 @@ import {
   CreditCard,
   Settings,
   ExternalLink,
+  LifeBuoy,
+  BookOpen,
+  HandHeart,
 } from "lucide-react";
+import { getTemporalUI } from "@/lib/api";
 
 export default function Nav() {
   const pathname = usePathname();
-  const TEMPORAL_UI =
-    process.env.NEXT_PUBLIC_TEMPORAL_UI || "http://localhost:8080";
+  const TEMPORAL_UI = getTemporalUI();
 
   const links = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/namespaces", label: "Namespaces", icon: Server },
     { href: "/billing", label: "Billing", icon: CreditCard },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/welcome", label: "Welcome", icon: HandHeart },
+    { href: "/support", label: "Support", icon: LifeBuoy },
+    { href: "/docs", label: "Docs", icon: BookOpen },
   ];
 
   return (

@@ -36,10 +36,7 @@ spec:
             - name: POSTGRES_USER
               value: postgres
             - name: POSTGRES_PWD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Release.Name }}-postgresql
-                  key: postgres-password
+              value: "temporal123"
             - name: POSTGRES_SEEDS
               value: {{ .Release.Name }}-postgresql
           resources:

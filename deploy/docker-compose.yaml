@@ -156,7 +156,7 @@ services:
     ports:
       - "8083:8083"
 
-  # Admin Portal
+  # Admin Portal (Dashboard after login)
   admin-portal:
     build:
       context: ../admin-portal
@@ -169,6 +169,17 @@ services:
       - TEMPORAL_UI_URL=http://localhost:8080
     ports:
       - "3000:3000"
+
+  # Marketing Site (Landing page like temporal.io)
+  marketing-site:
+    build:
+      context: ../marketing-site
+      dockerfile: Dockerfile
+    container_name: temporal-marketing
+    environment:
+      - PORT=3002
+    ports:
+      - "3002:3002"
 
 volumes:
   postgres_data:

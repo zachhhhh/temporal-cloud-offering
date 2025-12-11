@@ -1,0 +1,35 @@
+# Temporal UI Configuration with Google SSO
+# Current tunnel URL: https://anticipated-bond-broadway-biotechnology.trycloudflare.com
+
+temporalGrpcAddress: temporal-server:7233
+host: 0.0.0.0
+port: 8080
+enableUi: true
+defaultNamespace: default
+
+notifyOnNewVersion: false
+feedbackUrl: ""
+
+cors:
+  allowOrigins:
+    - "https://anticipated-bond-broadway-biotechnology.trycloudflare.com"
+    - "https://sorted-alberta-amsterdam-towers.trycloudflare.com"
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  cookieInsecure: false
+
+# Google OAuth - ENABLED
+# Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables
+auth:
+  enabled: true
+  providers:
+    - label: "Sign in with Google"
+      type: oidc
+      providerUrl: "https://accounts.google.com"
+      clientId: "${GOOGLE_CLIENT_ID}"
+      clientSecret: "${GOOGLE_CLIENT_SECRET}"
+      scopes:
+        - openid
+        - profile
+        - email
+      callbackUrl: "https://anticipated-bond-broadway-biotechnology.trycloudflare.com/sso/callback"

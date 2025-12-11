@@ -68,9 +68,20 @@ variable "node_memory_in_gbs" {
   default     = 12 # 12 GB x 2 nodes = 24 GB (free tier limit)
 }
 
+variable "node_shape" {
+  description = "OCI compute shape for worker nodes"
+  type        = string
+  default     = "VM.Standard.E4.Flex" # Cheapest x86: ~$0.025/OCPU/hour
+  # Options (cheapest to most expensive):
+  # - VM.Standard.A1.Flex: FREE (ARM, often out of capacity)
+  # - VM.Standard.E4.Flex: ~$0.025/OCPU/hour (AMD EPYC, BEST VALUE)
+  # - VM.Standard.E5.Flex: ~$0.028/OCPU/hour (AMD EPYC Gen5)
+  # - VM.Standard3.Flex:   ~$0.054/OCPU/hour (Intel Ice Lake)
+}
+
 variable "node_image_id" {
   description = "OCID of the Oracle Linux image for nodes"
   type        = string
-  # Oracle Linux 8 ARM image - update for your region
-  # Find with: oci compute image list --compartment-id <compartment> --shape VM.Standard.A1.Flex
+  # Oracle Linux 8 x86 image - update for your region
+  # Find with: oci compute image list --compartment-id <compartment> --shape VM.Standard.E4.Flex --operating-system "Oracle Linux" --operating-system-version "8"
 }

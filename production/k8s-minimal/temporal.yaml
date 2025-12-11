@@ -32,8 +32,8 @@ spec:
               value: temporal123
             - name: POSTGRES_SEEDS
               value: postgres.temporal-cloud.svc.cluster.local
-            - name: DYNAMIC_CONFIG_FILE_PATH
-              value: config/dynamicconfig/development-sql.yaml
+            - name: SKIP_SCHEMA_SETUP
+              value: "false"
           resources:
             requests:
               memory: "512Mi"
@@ -83,6 +83,10 @@ spec:
           env:
             - name: TEMPORAL_ADDRESS
               value: temporal.temporal-cloud.svc.cluster.local:7233
+            - name: TEMPORAL_UI_PORT
+              value: "8080"
+            - name: TEMPORAL_CORS_ORIGINS
+              value: "http://localhost:3000"
           resources:
             requests:
               memory: "64Mi"

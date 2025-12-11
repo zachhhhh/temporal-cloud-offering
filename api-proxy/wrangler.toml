@@ -1,0 +1,8 @@
+name = "temporal-api-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Using nip.io for free wildcard DNS (resolves to the IP)
+OKE_BILLING_URL = "https://cash-system-above-pendant.trycloudflare.com"
+OKE_TEMPORAL_URL = "http://161-118-255-113.nip.io:30080"

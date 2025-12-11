@@ -1,26 +1,24 @@
 # Oracle Cloud Deployment Status
 
-**Last Updated:** 2025-12-02
+**Last Updated:** 2025-12-02 (K3s Deployed)
 
 ## Current Infrastructure
 
-### VM 1: temporal-cloud (Primary)
+### K3s Cluster (2-node)
+
+#### VM 1: temporal-cloud (Control Plane)
 
 - **IP:** 161.118.255.113
 - **Shape:** VM.Standard.E2.1.Micro (1 OCPU, 1GB RAM)
-- **Status:** Running
-- **Services:**
-  - Temporal Server (port 7233)
-  - Temporal UI (via Caddy on port 80)
-  - PostgreSQL (internal)
-  - Billing API (via Caddy /api/\*)
-  - Caddy reverse proxy (port 80)
+- **Role:** K3s Server + Caddy reverse proxy
+- **K8s Workloads:** temporal-ui
 
-### VM 2: temporal-cloud-2 (Available)
+#### VM 2: temporal-cloud-2 (Worker)
 
 - **IP:** 161.118.214.222
 - **Shape:** VM.Standard.E2.1.Micro (1 OCPU, 1GB RAM)
-- **Status:** Running (idle, can be used for workers)
+- **Role:** K3s Agent
+- **K8s Workloads:** postgresql, temporal-server
 
 ## Access URLs
 

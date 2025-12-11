@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CreditCard, Download, Calendar, TrendingUp } from "lucide-react";
+import { fetchJSON, getBillingAPI, getOrgId } from "@/lib/api";
 
 interface Invoice {
   id: string;
@@ -27,28 +28,28 @@ export default function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const BILLING_API =
-    process.env.NEXT_PUBLIC_BILLING_API || "http://localhost:8082";
-  const ORG_ID = process.env.NEXT_PUBLIC_ORG_ID || "demo-org";
+  const BILLING_API = getBillingAPI();
+  const ORG_ID = getOrgId();
 
   useEffect(() => {
     async function fetchData() {
       try {
         const [invRes, subRes] = await Promise.all([
-          fetch(`${BILLING_API}/api/v1/organizations/${ORG_ID}/invoices`),
-          fetch(`${BILLING_API}/api/v1/organizations/${ORG_ID}/subscription`),
+          fetchJSON<Invoice[]>(
+            `${BILLING_API}/api/v1/organizations/${ORG_ID}/invoices`
+          ),
+          fetchJSON<Subscription>(
+            `${BILLING_API}/api/v1/organizations/${ORG_ID}/subscription`
+          ),
         ]);
 
-        if (invRes.ok) {
-          const data = await invRes.json();
-          setInvoices(data || []);
-        }
-        if (subRes.ok) {
-          setSubscription(await subRes.json());
-        }
+        setInvoices(invRes || []);
+        setSubscription(subRes);
       } catch (err) {
         console.error("Failed to fetch billing data:", err);
+        setError("Unable to load billing. Check API key and endpoints.");
       } finally {
         setLoading(false);
       }
@@ -109,6 +110,11 @@ export default function BillingPage() {
 
         {/* Current Plan */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded text-red-300 text-sm">
+              {error}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-lg font-semibold">Current Plan</h2>
