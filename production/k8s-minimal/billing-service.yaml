@@ -10,9 +10,10 @@ metadata:
   namespace: temporal-cloud
 type: Opaque
 stringData:
-  STRIPE_SECRET_KEY: "sk_test_51Eg0YRCPpritsit3yQhxjoO1C6enNqj336CvODxGorO6OdL83kTVmt4QCkJLZ3fc7e8QN4dKc2BQ9MuV5HPzLgFi00zIugkMNi"
-  STRIPE_PRICE_ESSENTIAL: "price_1SZwchCPpritsit3TIgo2Rfn"
-  STRIPE_PRICE_BUSINESS: "price_1SZwcrCPpritsit3LOysSN6x"
+  # Populate these with real Stripe values via kubectl create secret or your CI/CD system.
+  STRIPE_SECRET_KEY: ""
+  STRIPE_PRICE_ESSENTIAL: ""
+  STRIPE_PRICE_BUSINESS: ""
 ---
 apiVersion: apps/v1
 kind: Deployment
