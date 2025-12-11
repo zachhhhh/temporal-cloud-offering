@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/auth" | "/api/auth/google" | "/api/auth/google/callback" | "/api/auth/login" | "/api/auth/magic-link" | "/api/auth/set-password" | "/api/auth/verify" | "/auth" | "/auth/verify" | "/dashboard" | "/dashboard/batch-operations" | "/dashboard/billing" | "/dashboard/namespaces" | "/dashboard/schedules" | "/dashboard/settings" | "/dashboard/settings/security" | "/dashboard/ui" | "/login";
+		RouteId(): "/" | "/api" | "/api/auth" | "/api/auth/google" | "/api/auth/google/callback" | "/api/auth/login" | "/api/auth/magic-link" | "/api/auth/set-password" | "/api/auth/signup" | "/api/auth/verify" | "/auth" | "/auth/verify" | "/dashboard" | "/dashboard/batch-operations" | "/dashboard/billing" | "/dashboard/namespaces" | "/dashboard/schedules" | "/dashboard/settings" | "/dashboard/settings/security" | "/dashboard/ui" | "/login" | "/signup";
 		RouteParams(): {
 			
 		};
@@ -40,6 +40,7 @@ declare module "$app/types" {
 			"/api/auth/login": Record<string, never>;
 			"/api/auth/magic-link": Record<string, never>;
 			"/api/auth/set-password": Record<string, never>;
+			"/api/auth/signup": Record<string, never>;
 			"/api/auth/verify": Record<string, never>;
 			"/auth": Record<string, never>;
 			"/auth/verify": Record<string, never>;
@@ -51,9 +52,10 @@ declare module "$app/types" {
 			"/dashboard/settings": Record<string, never>;
 			"/dashboard/settings/security": Record<string, never>;
 			"/dashboard/ui": Record<string, never>;
-			"/login": Record<string, never>
+			"/login": Record<string, never>;
+			"/signup": Record<string, never>
 		};
-		Pathname(): "/" | "/api" | "/api/" | "/api/auth" | "/api/auth/" | "/api/auth/google" | "/api/auth/google/" | "/api/auth/google/callback" | "/api/auth/google/callback/" | "/api/auth/login" | "/api/auth/login/" | "/api/auth/magic-link" | "/api/auth/magic-link/" | "/api/auth/set-password" | "/api/auth/set-password/" | "/api/auth/verify" | "/api/auth/verify/" | "/auth" | "/auth/" | "/auth/verify" | "/auth/verify/" | "/dashboard" | "/dashboard/" | "/dashboard/batch-operations" | "/dashboard/batch-operations/" | "/dashboard/billing" | "/dashboard/billing/" | "/dashboard/namespaces" | "/dashboard/namespaces/" | "/dashboard/schedules" | "/dashboard/schedules/" | "/dashboard/settings" | "/dashboard/settings/" | "/dashboard/settings/security" | "/dashboard/settings/security/" | "/dashboard/ui" | "/dashboard/ui/" | "/login" | "/login/";
+		Pathname(): "/" | "/api" | "/api/" | "/api/auth" | "/api/auth/" | "/api/auth/google" | "/api/auth/google/" | "/api/auth/google/callback" | "/api/auth/google/callback/" | "/api/auth/login" | "/api/auth/login/" | "/api/auth/magic-link" | "/api/auth/magic-link/" | "/api/auth/set-password" | "/api/auth/set-password/" | "/api/auth/signup" | "/api/auth/signup/" | "/api/auth/verify" | "/api/auth/verify/" | "/auth" | "/auth/" | "/auth/verify" | "/auth/verify/" | "/dashboard" | "/dashboard/" | "/dashboard/batch-operations" | "/dashboard/batch-operations/" | "/dashboard/billing" | "/dashboard/billing/" | "/dashboard/namespaces" | "/dashboard/namespaces/" | "/dashboard/schedules" | "/dashboard/schedules/" | "/dashboard/settings" | "/dashboard/settings/" | "/dashboard/settings/security" | "/dashboard/settings/security/" | "/dashboard/ui" | "/dashboard/ui/" | "/login" | "/login/" | "/signup" | "/signup/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): "/favicon.png" | string & {};
 	}

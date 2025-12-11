@@ -1,0 +1,1 @@
+import{ad as t,a1 as o,_ as a,ae as c,a2 as u}from"./yF97ak1k.js";function f(n){a===null&&t(),c&&a.l!==null?l(a).m.push(n):o(()=>{const e=u(n);if(typeof e=="function")return e})}function l(n){var e=n.l;return e.u??(e.u={a:[],b:[],m:[]})}export{f as o};

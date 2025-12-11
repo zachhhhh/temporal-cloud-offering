@@ -138,7 +138,7 @@
       "_escaping.js"
     ],
     "css": [
-      "_app/immutable/assets/_layout.IJy8QVm6.css"
+      "_app/immutable/assets/_layout.DjePHEyM.css"
     ]
   },
   "src/routes/+layout.ts": {
@@ -186,6 +186,12 @@
     "file": "entries/endpoints/api/auth/set-password/_server.ts.js",
     "name": "entries/endpoints/api/auth/set-password/_server.ts",
     "src": "src/routes/api/auth/set-password/+server.ts",
+    "isEntry": true
+  },
+  "src/routes/api/auth/signup/+server.ts": {
+    "file": "entries/endpoints/api/auth/signup/_server.ts.js",
+    "name": "entries/endpoints/api/auth/signup/_server.ts",
+    "src": "src/routes/api/auth/signup/+server.ts",
     "isEntry": true
   },
   "src/routes/api/auth/verify/+server.ts": {
@@ -301,6 +307,20 @@
     "file": "entries/pages/login/_page.svelte.js",
     "name": "entries/pages/login/_page.svelte",
     "src": "src/routes/login/+page.svelte",
+    "isEntry": true,
+    "imports": [
+      "_index2.js",
+      "_exports.js",
+      "_utils.js",
+      "_state.svelte.js",
+      "_context.js",
+      "_escaping.js"
+    ]
+  },
+  "src/routes/signup/+page.svelte": {
+    "file": "entries/pages/signup/_page.svelte.js",
+    "name": "entries/pages/signup/_page.svelte",
+    "src": "src/routes/signup/+page.svelte",
     "isEntry": true,
     "imports": [
       "_index2.js",

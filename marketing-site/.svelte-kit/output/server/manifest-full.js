@@ -10,7 +10,7 @@ return {
 	assets: new Set(["favicon.png"]),
 	mimeTypes: {".png":"image/png"},
 	_: {
-		client: {start:"_app/immutable/entry/start.D7c543dy.js",app:"_app/immutable/entry/app.D3TPfVeC.js",imports:["_app/immutable/entry/start.D7c543dy.js","_app/immutable/chunks/C2oB9cch.js","_app/immutable/chunks/KVv5Wq5H.js","_app/immutable/chunks/eAXd7Ly4.js","_app/immutable/chunks/CNgpWDSg.js","_app/immutable/entry/app.D3TPfVeC.js","_app/immutable/chunks/KVv5Wq5H.js","_app/immutable/chunks/BWbQCZ69.js","_app/immutable/chunks/CNgpWDSg.js","_app/immutable/chunks/ozNNVPW2.js","_app/immutable/chunks/eAXd7Ly4.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.DNThgGj5.js",app:"_app/immutable/entry/app.C3ajON1u.js",imports:["_app/immutable/entry/start.DNThgGj5.js","_app/immutable/chunks/vG9K1qYa.js","_app/immutable/chunks/yF97ak1k.js","_app/immutable/chunks/CGiklUNy.js","_app/immutable/chunks/CtKM0EkB.js","_app/immutable/chunks/DTTKcyLN.js","_app/immutable/entry/app.C3ajON1u.js","_app/immutable/chunks/yF97ak1k.js","_app/immutable/chunks/kzzh-_L7.js","_app/immutable/chunks/DTTKcyLN.js","_app/immutable/chunks/CzlK3FID.js","_app/immutable/chunks/C8-YtTiG.js","_app/immutable/chunks/CGiklUNy.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('./nodes/0.js')),
 			__memo(() => import('./nodes/1.js')),
@@ -25,7 +25,8 @@ return {
 			__memo(() => import('./nodes/10.js')),
 			__memo(() => import('./nodes/11.js')),
 			__memo(() => import('./nodes/12.js')),
-			__memo(() => import('./nodes/13.js'))
+			__memo(() => import('./nodes/13.js')),
+			__memo(() => import('./nodes/14.js'))
 		],
 		remotes: {
 			
@@ -72,6 +73,13 @@ return {
 				params: [],
 				page: null,
 				endpoint: __memo(() => import('./entries/endpoints/api/auth/set-password/_server.ts.js'))
+			},
+			{
+				id: "/api/auth/signup",
+				pattern: /^\/api\/auth\/signup\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('./entries/endpoints/api/auth/signup/_server.ts.js'))
 			},
 			{
 				id: "/api/auth/verify",
@@ -148,6 +156,13 @@ return {
 				pattern: /^\/login\/?$/,
 				params: [],
 				page: { layouts: [0,], errors: [1,], leaf: 13 },
+				endpoint: null
+			},
+			{
+				id: "/signup",
+				pattern: /^\/signup\/?$/,
+				params: [],
+				page: { layouts: [0,], errors: [1,], leaf: 14 },
 				endpoint: null
 			}
 		],

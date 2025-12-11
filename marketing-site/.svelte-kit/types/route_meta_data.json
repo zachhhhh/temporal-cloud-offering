@@ -18,6 +18,9 @@
 	"/api/auth/set-password": [
 		"src/routes/api/auth/set-password/+server.ts"
 	],
+	"/api/auth/signup": [
+		"src/routes/api/auth/signup/+server.ts"
+	],
 	"/api/auth/verify": [
 		"src/routes/api/auth/verify/+server.ts"
 	],
@@ -50,6 +53,9 @@
 		"src/routes/+layout.ts"
 	],
 	"/login": [
+		"src/routes/+layout.ts"
+	],
+	"/signup": [
 		"src/routes/+layout.ts"
 	]
 }

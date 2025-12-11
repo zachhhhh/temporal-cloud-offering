@@ -18,6 +18,7 @@
 		"/dashboard/settings",
 		"/dashboard/settings/security",
 		"/dashboard/ui",
-		"/login"
+		"/login",
+		"/signup"
 	]
 }

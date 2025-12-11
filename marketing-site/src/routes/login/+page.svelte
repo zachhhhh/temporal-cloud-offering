@@ -14,10 +14,25 @@
     const urlError = $page.url.searchParams.get("error");
     if (urlError === "sso_not_configured") {
       error = "Google SSO is not configured. Please use email login or contact your administrator.";
+    } else if (urlError === "oauth_failed") {
+      error = "Google sign-in failed. Please try again or use email login.";
+    } else if (urlError === "access_denied") {
+      error = "Access was denied. Please try again or use a different account.";
     } else if (urlError) {
-      error = urlError;
+      error = urlError.replace(/_/g, " ");
+    }
+
+    // Check for success messages
+    const message = $page.url.searchParams.get("message");
+    if (message === "account_created") {
+      // Show success message for account creation
+      error = ""; // Clear any error
     }
   });
+
+  $: successMessage = $page.url.searchParams.get("message") === "account_created" 
+    ? "Account created successfully! You can now sign in." 
+    : "";
 
   async function handleEmailLogin() {
     loading = true;
@@ -56,6 +71,12 @@
       <h1 class="text-2xl font-bold text-white">Sign in to Temporal Cloud</h1>
       <p class="mt-2 text-sm text-zinc-400">Access your workflows and namespaces</p>
     </div>
+
+    {#if successMessage}
+      <div class="p-3 text-sm text-emerald-400 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+        {successMessage}
+      </div>
+    {/if}
 
     {#if error}
       <div class="p-3 text-sm text-red-400 bg-red-500/10 rounded-lg border border-red-500/20">

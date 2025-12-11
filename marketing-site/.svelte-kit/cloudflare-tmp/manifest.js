@@ -10,7 +10,7 @@ return {
 	assets: new Set(["favicon.png"]),
 	mimeTypes: {".png":"image/png"},
 	_: {
-		client: {start:"_app/immutable/entry/start.D7c543dy.js",app:"_app/immutable/entry/app.D3TPfVeC.js",imports:["_app/immutable/entry/start.D7c543dy.js","_app/immutable/chunks/C2oB9cch.js","_app/immutable/chunks/KVv5Wq5H.js","_app/immutable/chunks/eAXd7Ly4.js","_app/immutable/chunks/CNgpWDSg.js","_app/immutable/entry/app.D3TPfVeC.js","_app/immutable/chunks/KVv5Wq5H.js","_app/immutable/chunks/BWbQCZ69.js","_app/immutable/chunks/CNgpWDSg.js","_app/immutable/chunks/ozNNVPW2.js","_app/immutable/chunks/eAXd7Ly4.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
+		client: {start:"_app/immutable/entry/start.DNThgGj5.js",app:"_app/immutable/entry/app.C3ajON1u.js",imports:["_app/immutable/entry/start.DNThgGj5.js","_app/immutable/chunks/vG9K1qYa.js","_app/immutable/chunks/yF97ak1k.js","_app/immutable/chunks/CGiklUNy.js","_app/immutable/chunks/CtKM0EkB.js","_app/immutable/chunks/DTTKcyLN.js","_app/immutable/entry/app.C3ajON1u.js","_app/immutable/chunks/yF97ak1k.js","_app/immutable/chunks/kzzh-_L7.js","_app/immutable/chunks/DTTKcyLN.js","_app/immutable/chunks/CzlK3FID.js","_app/immutable/chunks/C8-YtTiG.js","_app/immutable/chunks/CGiklUNy.js"],stylesheets:[],fonts:[],uses_env_dynamic_public:false},
 		nodes: [
 			__memo(() => import('../output/server/nodes/0.js')),
 			__memo(() => import('../output/server/nodes/1.js'))
@@ -55,6 +55,13 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/auth/set-password/_server.ts.js'))
 			},
 			{
+				id: "/api/auth/signup",
+				pattern: /^\/api\/auth\/signup\/?$/,
+				params: [],
+				page: null,
+				endpoint: __memo(() => import('../output/server/entries/endpoints/api/auth/signup/_server.ts.js'))
+			},
+			{
 				id: "/api/auth/verify",
 				pattern: /^\/api\/auth\/verify\/?$/,
 				params: [],
@@ -62,7 +69,7 @@ return {
 				endpoint: __memo(() => import('../output/server/entries/endpoints/api/auth/verify/_server.ts.js'))
 			}
 		],
-		prerendered_routes: new Set(["/","/auth/verify","/dashboard","/dashboard/batch-operations","/dashboard/billing","/dashboard/namespaces","/dashboard/schedules","/dashboard/settings","/dashboard/settings/security","/dashboard/ui","/login"]),
+		prerendered_routes: new Set(["/","/auth/verify","/dashboard","/dashboard/batch-operations","/dashboard/billing","/dashboard/namespaces","/dashboard/schedules","/dashboard/settings","/dashboard/settings/security","/dashboard/ui","/login","/signup"]),
 		matchers: async () => {
 			
 			return {  };
@@ -72,6 +79,6 @@ return {
 }
 })();
 
-export const prerendered = new Set(["/","/auth/verify","/dashboard","/dashboard/batch-operations","/dashboard/billing","/dashboard/namespaces","/dashboard/schedules","/dashboard/settings","/dashboard/settings/security","/dashboard/ui","/login"]);
+export const prerendered = new Set(["/","/auth/verify","/dashboard","/dashboard/batch-operations","/dashboard/billing","/dashboard/namespaces","/dashboard/schedules","/dashboard/settings","/dashboard/settings/security","/dashboard/ui","/login","/signup"]);
 
 export const base_path = "";
