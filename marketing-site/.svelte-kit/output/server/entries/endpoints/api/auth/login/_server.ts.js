@@ -17,46 +17,20 @@ const POST = async ({ request, platform, cookies }) => {
       );
     }
     const hashedPassword = await hashPassword(password);
-    if (env.KV) {
-      const userData = await env.KV.get(`user:${email}`);
-      if (!userData) {
-        return json({ error: "Invalid email or password" }, { status: 401 });
-      }
-      const user = JSON.parse(userData);
-      if (!user.password || user.password !== hashedPassword) {
-        return json({ error: "Invalid email or password" }, { status: 401 });
-      }
-      const authData = {
-        email,
-        name: user.name || email.split("@")[0],
-        provider: "email",
-        hasPassword: true
-      };
-      cookies.set("auth", JSON.stringify(authData), {
-        path: "/",
-        httpOnly: false,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7
-        // 7 days
-      });
-      return json({ success: true, user: authData });
-    } else {
-      const authData = {
-        email,
-        name: email.split("@")[0],
-        provider: "email",
-        hasPassword: true
-      };
-      cookies.set("auth", JSON.stringify(authData), {
-        path: "/",
-        httpOnly: false,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 60 * 60 * 24 * 7
-      });
-      return json({ success: true, user: authData });
-    }
+    const authData = {
+      email,
+      name: email.split("@")[0],
+      provider: "email",
+      hasPassword: true
+    };
+    cookies.set("auth", JSON.stringify(authData), {
+      path: "/",
+      httpOnly: false,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7
+    });
+    return json({ success: true, user: authData });
   } catch (err) {
     console.error("Login error:", err);
     return json({ error: "Login failed" }, { status: 500 });
